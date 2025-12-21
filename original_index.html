@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Video Stream Player</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: #fff;
+      text-align: center;
+      padding: 40px;
+    }
+    input {
+      width: 70%;
+      padding: 10px;
+      font-size: 16px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    video {
+      margin-top: 30px;
+      width: 80%;
+      max-width: 800px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>🎬 Stream Video from Link</h2>
+
+  <input
+    type="text"
+    id="videoUrl"
+    placeholder="Paste video URL here (mp4)"
+  >
+
+  <button onclick="playVideo()">Play</button>
+
+  <br>
+
+  <video id="videoPlayer" controls preload="metadata">
+    Your browser does not support HTML5 video.
+  </video>
+
+  <script>
+    function playVideo() {
+      const url = document.getElementById("videoUrl").value.trim();
+      const video = document.getElementById("videoPlayer");
+
+      if (!url) {
+        alert("Please enter a video link");
+        return;
+      }
+
+      video.src = url;
+      video.load();
+      video.play();
+    }
+  </script>
+
+</body>
+</html>
