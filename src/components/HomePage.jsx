@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, ChevronLeft, ChevronRight, Star, Clock, Film, RefreshCw, Search, X } from 'lucide-react';
+import { Play, ChevronLeft, ChevronRight, Star, Clock, Film, RefreshCw, Search, X, Link, Tv, Clapperboard, MonitorPlay } from 'lucide-react';
 import { fetchAllPlaylists, getFeaturedPlaylist, searchPlaylists } from '../utils/m3uPlaylistService';
 
 const HomePage = ({ onPlayVideo, onPlaylistsLoaded }) => {
@@ -11,7 +11,13 @@ const HomePage = ({ onPlayVideo, onPlaylistsLoaded }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
+    const [selectedGroup, setSelectedGroup] = useState('All');
     const searchInputRef = useRef(null);
+
+    // Check if query is a valid URL for direct playback
+    const isValidUrl = (str) => {
+        return /^(https?|rtmp|rtsp):\/\//i.test(str.trim());
+    };
 
     useEffect(() => {
         loadPlaylists();
@@ -61,6 +67,20 @@ const HomePage = ({ onPlayVideo, onPlaylistsLoaded }) => {
         setSearchQuery('');
         setSearchResults([]);
     };
+
+    // Direct URL playback handler
+    const handlePlayUrl = (url) => {
+        if (onPlayVideo) {
+            onPlayVideo(url.trim(), 'Direct Link', 'External');
+        }
+        setSearchQuery('');
+        setSearchResults([]);
+    };
+
+    // Filter playlists by selected group
+    const filteredPlaylists = selectedGroup === 'All'
+        ? playlists
+        : playlists.filter(p => p.groupTypes && p.groupTypes.includes(selectedGroup));
 
     const clearSearch = () => {
         setSearchQuery('');
@@ -112,20 +132,38 @@ const HomePage = ({ onPlayVideo, onPlaylistsLoaded }) => {
 
                 {/* Search Results Dropdown */}
                 <AnimatePresence>
-                    {searchResults.length > 0 && (
+                    {(searchResults.length > 0 || isValidUrl(searchQuery)) && (
                         <motion.div
                             className="search-results"
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
                         >
+                            {/* Direct URL Play Option */}
+                            {isValidUrl(searchQuery) && (
+                                <motion.div
+                                    className="search-result-item url-play-item"
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    onClick={() => handlePlayUrl(searchQuery)}
+                                >
+                                    <div className="url-play-icon">
+                                        <Link size={24} />
+                                    </div>
+                                    <div className="result-info">
+                                        <span className="result-title">Play this URL</span>
+                                        <span className="result-package url-text">{searchQuery.substring(0, 50)}...</span>
+                                    </div>
+                                    <Play size={18} className="result-play" />
+                                </motion.div>
+                            )}
                             {searchResults.map((episode, idx) => (
                                 <motion.div
                                     key={`${episode.id}-${idx}`}
                                     className="search-result-item"
                                     initial={{ opacity: 0, x: -10 }}
                                     animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: idx * 0.03 }}
+                                    transition={{ delay: (isValidUrl(searchQuery) ? idx + 1 : idx) * 0.03 }}
                                     onClick={() => handlePlayEpisode(episode)}
                                 >
                                     <img
@@ -145,7 +183,7 @@ const HomePage = ({ onPlayVideo, onPlaylistsLoaded }) => {
                 </AnimatePresence>
 
                 {/* No Results */}
-                {searchQuery.length >= 2 && searchResults.length === 0 && (
+                {searchQuery.length >= 2 && searchResults.length === 0 && !isValidUrl(searchQuery) && (
                     <motion.div
                         className="search-no-results"
                         initial={{ opacity: 0 }}
@@ -167,9 +205,29 @@ const HomePage = ({ onPlayVideo, onPlaylistsLoaded }) => {
             {/* Playlist Cards */}
             {!searchQuery && (
                 <div className="content-section">
-                    <h2 className="section-title">All Series & Movies</h2>
+                    {/* Filter Tabs */}
+                    <div className="filter-tabs">
+                        {['All', 'Movies', 'Series', 'TV'].map((group) => (
+                            <motion.button
+                                key={group}
+                                className={`filter-tab ${selectedGroup === group ? 'active' : ''}`}
+                                onClick={() => setSelectedGroup(group)}
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                            >
+                                {group === 'Movies' && <Clapperboard size={16} />}
+                                {group === 'Series' && <MonitorPlay size={16} />}
+                                {group === 'TV' && <Tv size={16} />}
+                                {group}
+                            </motion.button>
+                        ))}
+                    </div>
+
+                    <h2 className="section-title">
+                        {selectedGroup === 'All' ? 'All Series & Movies' : selectedGroup}
+                    </h2>
                     <div className="playlist-grid">
-                        {playlists.map((playlist, index) => (
+                        {filteredPlaylists.map((playlist, index) => (
                             <PlaylistCard
                                 key={playlist.id}
                                 playlist={playlist}
@@ -177,6 +235,11 @@ const HomePage = ({ onPlayVideo, onPlaylistsLoaded }) => {
                                 delay={index * 0.05}
                             />
                         ))}
+                        {filteredPlaylists.length === 0 && (
+                            <div className="no-content-msg">
+                                No {selectedGroup} content found
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -348,6 +411,79 @@ const HomePage = ({ onPlayVideo, onPlaylistsLoaded }) => {
                     text-align: center;
                     color: #666;
                     font-size: 14px;
+                }
+
+                /* URL Play Item */
+                .url-play-item {
+                    background: linear-gradient(135deg, rgba(229, 9, 20, 0.15) 0%, rgba(229, 9, 20, 0.05) 100%);
+                    border-left: 3px solid #e50914;
+                }
+
+                .url-play-icon {
+                    width: 50px;
+                    height: 50px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: rgba(229, 9, 20, 0.2);
+                    border-radius: 8px;
+                    color: #e50914;
+                }
+
+                .url-text {
+                    font-family: monospace;
+                    font-size: 11px;
+                }
+
+                /* Filter Tabs */
+                .filter-tabs {
+                    display: flex;
+                    gap: 10px;
+                    margin-bottom: 24px;
+                    overflow-x: auto;
+                    padding-bottom: 8px;
+                    scrollbar-width: none;
+                    -ms-overflow-style: none;
+                }
+
+                .filter-tabs::-webkit-scrollbar {
+                    display: none;
+                }
+
+                .filter-tab {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 10px 20px;
+                    background: rgba(255, 255, 255, 0.08);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 24px;
+                    color: #ccc;
+                    font-size: 14px;
+                    font-weight: 500;
+                    cursor: pointer;
+                    white-space: nowrap;
+                    transition: all 0.2s;
+                }
+
+                .filter-tab:hover {
+                    background: rgba(255, 255, 255, 0.12);
+                    color: white;
+                }
+
+                .filter-tab.active {
+                    background: linear-gradient(135deg, #e50914 0%, #b20710 100%);
+                    border-color: #e50914;
+                    color: white;
+                    box-shadow: 0 4px 15px rgba(229, 9, 20, 0.4);
+                }
+
+                .no-content-msg {
+                    grid-column: 1 / -1;
+                    text-align: center;
+                    padding: 60px 20px;
+                    color: #666;
+                    font-size: 16px;
                 }
 
                 /* Content Section */

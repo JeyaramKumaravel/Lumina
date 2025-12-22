@@ -3,7 +3,7 @@ import {
     Play, Heart, Clock, List,
     ChevronRight, Plus, ArrowLeft,
     Trash2, Edit2, Check, X, Users, UserPlus,
-    Download, Upload, Settings
+    Download, Upload, Settings, RefreshCw
 } from 'lucide-react';
 import {
     getLibrary, getFavorites, getHistory, getPlaylists,
@@ -15,6 +15,7 @@ import {
     getAllProfiles, getActiveProfile, setActiveProfile,
     createProfile, updateProfile, deleteProfile
 } from '../utils/profileManager';
+import { fetchAllPlaylists, clearPlaylistCache } from '../utils/m3uPlaylistService';
 
 const Library = ({ isOpen, onClose, onPlayVideo }) => {
     const [view, setView] = useState('main');
@@ -36,6 +37,9 @@ const Library = ({ isOpen, onClose, onPlayVideo }) => {
     // Playlist creation
     const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
     const [newPlaylistName, setNewPlaylistName] = useState('');
+
+    // Refresh state
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -109,6 +113,21 @@ const Library = ({ isOpen, onClose, onPlayVideo }) => {
     const handleExportData = () => {
         if (window.confirm('Download your library, history, and playlists?')) {
             exportLibrary();
+        }
+    };
+
+    // Refresh playlists from GitHub
+    const handleRefreshPlaylists = async () => {
+        setIsRefreshing(true);
+        try {
+            clearPlaylistCache();
+            await fetchAllPlaylists(true);
+            alert('Playlists refreshed successfully!');
+        } catch (err) {
+            console.error('Failed to refresh playlists:', err);
+            alert('Failed to refresh playlists. Please try again.');
+        } finally {
+            setIsRefreshing(false);
         }
     };
 
@@ -487,6 +506,38 @@ const Library = ({ isOpen, onClose, onPlayVideo }) => {
                 <div className="yt-you-section-header">
                     <h2>Data & Storage</h2>
                 </div>
+
+                {/* Refresh Playlists Button */}
+                <div style={{ padding: '0 16px', marginBottom: '16px' }}>
+                    <button
+                        onClick={handleRefreshPlaylists}
+                        disabled={isRefreshing}
+                        style={{
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            background: isRefreshing ? '#1a1a1a' : 'linear-gradient(135deg, #e50914 0%, #b20710 100%)',
+                            border: 'none',
+                            borderRadius: '18px',
+                            padding: '14px',
+                            color: 'white',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            cursor: isRefreshing ? 'not-allowed' : 'pointer',
+                            opacity: isRefreshing ? 0.7 : 1,
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        <RefreshCw size={18} className={isRefreshing ? 'spin-animation' : ''} style={isRefreshing ? { animation: 'spin 1s linear infinite' } : {}} />
+                        {isRefreshing ? 'Refreshing...' : 'Refresh Playlists from Repo'}
+                    </button>
+                    <p style={{ fontSize: '12px', color: '#888', textAlign: 'center', marginTop: '8px' }}>
+                        Update playlists when new .m3u files are added
+                    </p>
+                </div>
+
                 <div style={{ display: 'flex', gap: '12px', padding: '0 16px' }}>
                     <button
                         onClick={handleExportData}
@@ -509,6 +560,13 @@ const Library = ({ isOpen, onClose, onPlayVideo }) => {
                     />
                 </div>
             </div>
+
+            <style>{`
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+            `}</style>
         </div>
     );
 };

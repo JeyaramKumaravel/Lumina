@@ -28,12 +28,29 @@ const parseM3UContent = (content, packageName) => {
             // Extract attributes
             const attributes = info.substring(0, commaIndex);
             const logoMatch = attributes.match(/tvg-logo="([^"]*)"/);
+            const groupMatch = attributes.match(/group-title="([^"]*)"/i);
+
+            // Normalize group type
+            let groupType = 'Other';
+            if (groupMatch) {
+                const rawGroup = groupMatch[1].toLowerCase();
+                if (rawGroup.includes('series') || rawGroup.includes('web series')) {
+                    groupType = 'Series';
+                } else if (rawGroup.includes('movie') || rawGroup.includes('movies')) {
+                    groupType = 'Movies';
+                } else if (rawGroup.includes('tv') || rawGroup.includes('live') || rawGroup.includes('channel')) {
+                    groupType = 'TV';
+                } else {
+                    groupType = 'Other';
+                }
+            }
 
             currentEpisode = {
                 id: `${packageName}_${episodes.length}`,
                 title: cleanTitle(title),
                 thumbnail: logoMatch ? logoMatch[1] : null,
-                packageName: packageName
+                packageName: packageName,
+                groupType: groupType
             };
         } else if (line.startsWith('http') || line.startsWith('rtmp') || line.startsWith('rtsp')) {
             currentEpisode.url = line;
@@ -114,13 +131,17 @@ export const fetchAllPlaylists = async (forceRefresh = false) => {
                     const packageName = extractPackageName(file.name);
                     const episodes = parseM3UContent(content, packageName);
 
+                    // Get unique group types from episodes
+                    const groupTypes = [...new Set(episodes.map(ep => ep.groupType))];
+
                     return {
                         id: file.sha,
                         name: packageName,
                         filename: file.name,
                         thumbnail: getPackageThumbnail(episodes),
                         episodes: episodes,
-                        episodeCount: episodes.length
+                        episodeCount: episodes.length,
+                        groupTypes: groupTypes
                     };
                 } catch (err) {
                     console.warn(`Failed to fetch ${file.name}:`, err);
