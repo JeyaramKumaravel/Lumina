@@ -1,17 +1,31 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, ChevronLeft, ChevronRight, Star, Clock, Film, RefreshCw } from 'lucide-react';
-import { fetchAllPlaylists, getFeaturedPlaylist } from '../utils/m3uPlaylistService';
+import { Play, ChevronLeft, ChevronRight, Star, Clock, Film, RefreshCw, Search, X } from 'lucide-react';
+import { fetchAllPlaylists, getFeaturedPlaylist, searchPlaylists } from '../utils/m3uPlaylistService';
 
 const HomePage = ({ onPlayVideo, onPlaylistsLoaded }) => {
     const [playlists, setPlaylists] = useState([]);
     const [featuredPlaylist, setFeaturedPlaylist] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
+    const searchInputRef = useRef(null);
 
     useEffect(() => {
         loadPlaylists();
     }, []);
+
+    // Smart search with debounce
+    useEffect(() => {
+        if (searchQuery.trim().length >= 2 && playlists.length > 0) {
+            const results = searchPlaylists(playlists, searchQuery);
+            setSearchResults(results);
+        } else {
+            setSearchResults([]);
+        }
+    }, [searchQuery, playlists]);
 
     const loadPlaylists = async (forceRefresh = false) => {
         setLoading(true);
@@ -31,10 +45,27 @@ const HomePage = ({ onPlayVideo, onPlaylistsLoaded }) => {
         }
     };
 
+    const handlePlayPlaylist = (playlist) => {
+        if (playlist.episodes.length > 0) {
+            const firstEpisode = playlist.episodes[0];
+            if (onPlayVideo) {
+                onPlayVideo(firstEpisode.url, firstEpisode.title, playlist.name);
+            }
+        }
+    };
+
     const handlePlayEpisode = (episode) => {
         if (onPlayVideo) {
             onPlayVideo(episode.url, episode.title, episode.packageName);
         }
+        setSearchQuery('');
+        setSearchResults([]);
+    };
+
+    const clearSearch = () => {
+        setSearchQuery('');
+        setSearchResults([]);
+        searchInputRef.current?.blur();
     };
 
     if (loading) {
@@ -55,25 +86,100 @@ const HomePage = ({ onPlayVideo, onPlaylistsLoaded }) => {
 
     return (
         <div className="home-page">
+            {/* Smart Search Bar */}
+            <div className="search-container">
+                <motion.div
+                    className={`search-bar ${isSearchFocused ? 'search-bar-focused' : ''}`}
+                    animate={{ width: isSearchFocused ? '100%' : '100%' }}
+                >
+                    <Search size={20} className="search-icon" />
+                    <input
+                        ref={searchInputRef}
+                        type="text"
+                        placeholder="Search movies, series, episodes..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onFocus={() => setIsSearchFocused(true)}
+                        onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                        className="search-input"
+                    />
+                    {searchQuery && (
+                        <button className="search-clear" onClick={clearSearch}>
+                            <X size={18} />
+                        </button>
+                    )}
+                </motion.div>
+
+                {/* Search Results Dropdown */}
+                <AnimatePresence>
+                    {searchResults.length > 0 && (
+                        <motion.div
+                            className="search-results"
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                        >
+                            {searchResults.map((episode, idx) => (
+                                <motion.div
+                                    key={`${episode.id}-${idx}`}
+                                    className="search-result-item"
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: idx * 0.03 }}
+                                    onClick={() => handlePlayEpisode(episode)}
+                                >
+                                    <img
+                                        src={episode.thumbnail}
+                                        alt=""
+                                        className="result-thumb"
+                                    />
+                                    <div className="result-info">
+                                        <span className="result-title">{episode.title}</span>
+                                        <span className="result-package">{episode.packageName}</span>
+                                    </div>
+                                    <Play size={18} className="result-play" />
+                                </motion.div>
+                            ))}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* No Results */}
+                {searchQuery.length >= 2 && searchResults.length === 0 && (
+                    <motion.div
+                        className="search-no-results"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                    >
+                        <span>No results found for "{searchQuery}"</span>
+                    </motion.div>
+                )}
+            </div>
+
             {/* Hero Section */}
-            {featuredPlaylist && (
+            {featuredPlaylist && !searchQuery && (
                 <HeroSection
                     playlist={featuredPlaylist}
-                    onPlay={handlePlayEpisode}
+                    onPlay={() => handlePlayPlaylist(featuredPlaylist)}
                 />
             )}
 
-            {/* Content Rows */}
-            <div className="content-rows">
-                {playlists.map((playlist, index) => (
-                    <ContentRow
-                        key={playlist.id}
-                        playlist={playlist}
-                        onPlayEpisode={handlePlayEpisode}
-                        delay={index * 0.1}
-                    />
-                ))}
-            </div>
+            {/* Playlist Cards */}
+            {!searchQuery && (
+                <div className="content-section">
+                    <h2 className="section-title">All Series & Movies</h2>
+                    <div className="playlist-grid">
+                        {playlists.map((playlist, index) => (
+                            <PlaylistCard
+                                key={playlist.id}
+                                playlist={playlist}
+                                onPlay={() => handlePlayPlaylist(playlist)}
+                                delay={index * 0.05}
+                            />
+                        ))}
+                    </div>
+                </div>
+            )}
 
             <style>{`
                 .home-page {
@@ -111,8 +217,155 @@ const HomePage = ({ onPlayVideo, onPlaylistsLoaded }) => {
                     box-shadow: 0 8px 25px rgba(229, 9, 20, 0.4);
                 }
 
-                .content-rows {
-                    padding: 20px 0;
+                /* Search Container */
+                .search-container {
+                    position: relative;
+                    padding: 20px 24px;
+                    z-index: 50;
+                }
+
+                .search-bar {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    background: rgba(255, 255, 255, 0.08);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 16px;
+                    padding: 14px 20px;
+                    transition: all 0.3s;
+                }
+
+                .search-bar-focused {
+                    background: rgba(255, 255, 255, 0.12);
+                    border-color: rgba(229, 9, 20, 0.5);
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+                }
+
+                .search-icon {
+                    color: #888;
+                    flex-shrink: 0;
+                }
+
+                .search-input {
+                    flex: 1;
+                    background: none;
+                    border: none;
+                    color: white;
+                    font-size: 16px;
+                    outline: none;
+                }
+
+                .search-input::placeholder {
+                    color: #666;
+                }
+
+                .search-clear {
+                    padding: 4px;
+                    background: rgba(255, 255, 255, 0.1);
+                    border: none;
+                    border-radius: 50%;
+                    color: #888;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+
+                .search-results {
+                    position: absolute;
+                    top: 100%;
+                    left: 24px;
+                    right: 24px;
+                    background: #1a1a1a;
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 12px;
+                    max-height: 400px;
+                    overflow-y: auto;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+                }
+
+                .search-result-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    padding: 12px 16px;
+                    cursor: pointer;
+                    transition: background 0.2s;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                }
+
+                .search-result-item:last-child {
+                    border-bottom: none;
+                }
+
+                .search-result-item:hover {
+                    background: rgba(255, 255, 255, 0.08);
+                }
+
+                .result-thumb {
+                    width: 50px;
+                    height: 65px;
+                    object-fit: cover;
+                    border-radius: 6px;
+                }
+
+                .result-info {
+                    flex: 1;
+                    min-width: 0;
+                }
+
+                .result-title {
+                    display: block;
+                    font-size: 14px;
+                    font-weight: 500;
+                    color: white;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+
+                .result-package {
+                    display: block;
+                    font-size: 12px;
+                    color: #888;
+                    margin-top: 4px;
+                }
+
+                .result-play {
+                    color: #e50914;
+                    flex-shrink: 0;
+                }
+
+                .search-no-results {
+                    position: absolute;
+                    top: 100%;
+                    left: 24px;
+                    right: 24px;
+                    background: #1a1a1a;
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 12px;
+                    padding: 20px;
+                    text-align: center;
+                    color: #666;
+                    font-size: 14px;
+                }
+
+                /* Content Section */
+                .content-section {
+                    padding: 20px 24px;
+                }
+
+                .section-title {
+                    font-size: 22px;
+                    font-weight: 700;
+                    margin-bottom: 20px;
+                    color: #fff;
+                }
+
+                .playlist-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+                    gap: 20px;
                 }
 
                 /* Loading State */
@@ -130,28 +383,15 @@ const HomePage = ({ onPlayVideo, onPlaylistsLoaded }) => {
                     animation: shimmer 1.5s infinite;
                 }
 
-                .loading-row {
-                    margin-bottom: 32px;
-                }
-
-                .loading-title {
-                    height: 24px;
-                    width: 200px;
-                    background: #222;
-                    border-radius: 8px;
-                    margin-bottom: 16px;
-                    animation: shimmer 1.5s infinite;
-                }
-
-                .loading-cards {
-                    display: flex;
-                    gap: 16px;
-                    overflow: hidden;
+                .loading-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+                    gap: 20px;
+                    padding: 20px;
                 }
 
                 .loading-card {
-                    min-width: 180px;
-                    height: 270px;
+                    height: 260px;
                     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
                     border-radius: 12px;
                     animation: shimmer 1.5s infinite;
@@ -161,6 +401,26 @@ const HomePage = ({ onPlayVideo, onPlaylistsLoaded }) => {
                     0%, 100% { opacity: 0.5; }
                     50% { opacity: 0.8; }
                 }
+
+                @media (max-width: 768px) {
+                    .search-container {
+                        padding: 16px;
+                    }
+
+                    .search-results {
+                        left: 16px;
+                        right: 16px;
+                    }
+
+                    .content-section {
+                        padding: 16px;
+                    }
+
+                    .playlist-grid {
+                        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                        gap: 12px;
+                    }
+                }
             `}</style>
         </div>
     );
@@ -168,8 +428,6 @@ const HomePage = ({ onPlayVideo, onPlaylistsLoaded }) => {
 
 // Hero Section Component
 const HeroSection = ({ playlist, onPlay }) => {
-    const firstEpisode = playlist.episodes[0];
-
     return (
         <motion.div
             className="hero-section"
@@ -201,24 +459,14 @@ const HeroSection = ({ playlist, onPlay }) => {
                         <span><Film size={16} /> {playlist.episodeCount} Episodes</span>
                         <span><Clock size={16} /> New</span>
                     </div>
-                    <p className="hero-description">
-                        Watch {playlist.name} - All {playlist.episodeCount} episodes available now!
-                    </p>
                     <div className="hero-actions">
                         <motion.button
                             className="play-btn"
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => onPlay(firstEpisode)}
+                            onClick={onPlay}
                         >
-                            <Play size={22} fill="black" /> Play
-                        </motion.button>
-                        <motion.button
-                            className="info-btn"
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                        >
-                            More Info
+                            <Play size={22} fill="black" /> Watch Now
                         </motion.button>
                     </div>
                 </motion.div>
@@ -227,10 +475,12 @@ const HeroSection = ({ playlist, onPlay }) => {
             <style>{`
                 .hero-section {
                     position: relative;
-                    height: 65vh;
-                    min-height: 400px;
-                    max-height: 600px;
+                    height: 55vh;
+                    min-height: 350px;
+                    max-height: 500px;
                     overflow: hidden;
+                    margin: 0 24px;
+                    border-radius: 20px;
                 }
 
                 .hero-backdrop {
@@ -241,7 +491,6 @@ const HeroSection = ({ playlist, onPlay }) => {
                     bottom: 0;
                     background-size: cover;
                     background-position: center top;
-                    filter: blur(0px);
                     transform: scale(1.1);
                 }
 
@@ -254,15 +503,13 @@ const HeroSection = ({ playlist, onPlay }) => {
                     background: linear-gradient(
                         90deg, 
                         rgba(10, 10, 10, 0.95) 0%, 
-                        rgba(10, 10, 10, 0.7) 40%,
-                        rgba(10, 10, 10, 0.3) 70%,
+                        rgba(10, 10, 10, 0.6) 50%,
                         transparent 100%
                     ),
                     linear-gradient(
                         180deg,
                         transparent 0%,
-                        rgba(10, 10, 10, 0.5) 70%,
-                        rgba(10, 10, 10, 1) 100%
+                        rgba(10, 10, 10, 0.8) 100%
                     );
                 }
 
@@ -271,9 +518,9 @@ const HeroSection = ({ playlist, onPlay }) => {
                     height: 100%;
                     display: flex;
                     flex-direction: column;
-                    justify-content: center;
-                    padding: 0 48px;
-                    max-width: 600px;
+                    justify-content: flex-end;
+                    padding: 32px;
+                    max-width: 500px;
                 }
 
                 .hero-badge {
@@ -287,21 +534,21 @@ const HeroSection = ({ playlist, onPlay }) => {
                     font-size: 13px;
                     font-weight: 600;
                     color: #ffd700;
-                    margin-bottom: 16px;
+                    margin-bottom: 12px;
                 }
 
                 .hero-title {
-                    font-size: clamp(28px, 5vw, 52px);
+                    font-size: clamp(24px, 4vw, 40px);
                     font-weight: 800;
                     line-height: 1.1;
-                    margin-bottom: 16px;
+                    margin-bottom: 12px;
                     text-shadow: 2px 2px 20px rgba(0, 0, 0, 0.5);
                 }
 
                 .hero-meta {
                     display: flex;
-                    gap: 20px;
-                    margin-bottom: 16px;
+                    gap: 16px;
+                    margin-bottom: 20px;
                     font-size: 14px;
                     color: #aaa;
                 }
@@ -310,14 +557,6 @@ const HeroSection = ({ playlist, onPlay }) => {
                     display: flex;
                     align-items: center;
                     gap: 6px;
-                }
-
-                .hero-description {
-                    font-size: 16px;
-                    color: #ccc;
-                    line-height: 1.5;
-                    margin-bottom: 24px;
-                    max-width: 450px;
                 }
 
                 .hero-actions {
@@ -329,11 +568,11 @@ const HeroSection = ({ playlist, onPlay }) => {
                     display: flex;
                     align-items: center;
                     gap: 8px;
-                    padding: 14px 32px;
+                    padding: 14px 28px;
                     background: white;
                     border: none;
                     border-radius: 8px;
-                    font-size: 16px;
+                    font-size: 15px;
                     font-weight: 700;
                     color: black;
                     cursor: pointer;
@@ -342,45 +581,19 @@ const HeroSection = ({ playlist, onPlay }) => {
 
                 .play-btn:hover {
                     background: #e6e6e6;
-                }
-
-                .info-btn {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    padding: 14px 28px;
-                    background: rgba(255, 255, 255, 0.15);
-                    backdrop-filter: blur(10px);
-                    border: 1px solid rgba(255, 255, 255, 0.2);
-                    border-radius: 8px;
-                    font-size: 16px;
-                    font-weight: 600;
-                    color: white;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                }
-
-                .info-btn:hover {
-                    background: rgba(255, 255, 255, 0.25);
+                    transform: scale(1.02);
                 }
 
                 @media (max-width: 768px) {
                     .hero-section {
-                        height: 55vh;
-                        min-height: 350px;
+                        height: 45vh;
+                        min-height: 280px;
+                        margin: 0 16px;
+                        border-radius: 16px;
                     }
 
                     .hero-content {
-                        padding: 0 20px;
-                    }
-
-                    .hero-actions {
-                        flex-direction: column;
-                    }
-
-                    .play-btn, .info-btn {
-                        width: 100%;
-                        justify-content: center;
+                        padding: 20px;
                     }
                 }
             `}</style>
@@ -388,201 +601,26 @@ const HeroSection = ({ playlist, onPlay }) => {
     );
 };
 
-// Content Row Component (Netflix-style carousel)
-const ContentRow = ({ playlist, onPlayEpisode, delay }) => {
-    const scrollRef = useRef(null);
-    const [canScrollLeft, setCanScrollLeft] = useState(false);
-    const [canScrollRight, setCanScrollRight] = useState(true);
-
-    const checkScroll = () => {
-        if (scrollRef.current) {
-            const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
-            setCanScrollLeft(scrollLeft > 0);
-            setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
-        }
-    };
-
-    const scroll = (direction) => {
-        if (scrollRef.current) {
-            const scrollAmount = scrollRef.current.clientWidth * 0.8;
-            scrollRef.current.scrollBy({
-                left: direction === 'left' ? -scrollAmount : scrollAmount,
-                behavior: 'smooth'
-            });
-        }
-    };
-
-    return (
-        <motion.div
-            className="content-row"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay, duration: 0.5 }}
-        >
-            <div className="row-header">
-                <h2 className="row-title">{playlist.name}</h2>
-                <span className="episode-count">{playlist.episodeCount} Episodes</span>
-            </div>
-
-            <div className="carousel-container">
-                <AnimatePresence>
-                    {canScrollLeft && (
-                        <motion.button
-                            className="scroll-btn scroll-left"
-                            onClick={() => scroll('left')}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                        >
-                            <ChevronLeft size={28} />
-                        </motion.button>
-                    )}
-                </AnimatePresence>
-
-                <div
-                    className="episode-carousel"
-                    ref={scrollRef}
-                    onScroll={checkScroll}
-                >
-                    {playlist.episodes.map((episode, index) => (
-                        <EpisodeCard
-                            key={episode.id}
-                            episode={episode}
-                            index={index + 1}
-                            onClick={() => onPlayEpisode(episode)}
-                        />
-                    ))}
-                </div>
-
-                <AnimatePresence>
-                    {canScrollRight && (
-                        <motion.button
-                            className="scroll-btn scroll-right"
-                            onClick={() => scroll('right')}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                        >
-                            <ChevronRight size={28} />
-                        </motion.button>
-                    )}
-                </AnimatePresence>
-            </div>
-
-            <style>{`
-                .content-row {
-                    margin-bottom: 36px;
-                    padding: 0 16px;
-                }
-
-                .row-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    margin-bottom: 16px;
-                    padding: 0 8px;
-                }
-
-                .row-title {
-                    font-size: 20px;
-                    font-weight: 700;
-                    color: #fff;
-                }
-
-                .episode-count {
-                    font-size: 13px;
-                    color: #888;
-                    padding: 4px 10px;
-                    background: rgba(255, 255, 255, 0.1);
-                    border-radius: 12px;
-                }
-
-                .carousel-container {
-                    position: relative;
-                }
-
-                .episode-carousel {
-                    display: flex;
-                    gap: 14px;
-                    overflow-x: auto;
-                    scroll-behavior: smooth;
-                    padding: 8px;
-                    -webkit-overflow-scrolling: touch;
-                    scrollbar-width: none;
-                    -ms-overflow-style: none;
-                }
-
-                .episode-carousel::-webkit-scrollbar {
-                    display: none;
-                }
-
-                .scroll-btn {
-                    position: absolute;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    width: 48px;
-                    height: 48px;
-                    background: rgba(20, 20, 20, 0.9);
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    border-radius: 50%;
-                    color: white;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: pointer;
-                    z-index: 10;
-                    transition: all 0.2s;
-                    backdrop-filter: blur(10px);
-                }
-
-                .scroll-btn:hover {
-                    background: rgba(40, 40, 40, 0.95);
-                    transform: translateY(-50%) scale(1.1);
-                }
-
-                .scroll-left {
-                    left: -8px;
-                }
-
-                .scroll-right {
-                    right: -8px;
-                }
-
-                @media (max-width: 768px) {
-                    .scroll-btn {
-                        display: none;
-                    }
-
-                    .content-row {
-                        padding: 0 12px;
-                    }
-
-                    .row-title {
-                        font-size: 18px;
-                    }
-                }
-            `}</style>
-        </motion.div>
-    );
-};
-
-// Episode Card Component
-const EpisodeCard = ({ episode, index, onClick }) => {
+// Playlist Card Component (Single card per playlist)
+const PlaylistCard = ({ playlist, onPlay, delay }) => {
     const [isHovered, setIsHovered] = useState(false);
 
     return (
         <motion.div
-            className="episode-card"
+            className="playlist-card"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay, duration: 0.4 }}
             whileHover={{ scale: 1.05, y: -8 }}
             whileTap={{ scale: 0.98 }}
             onHoverStart={() => setIsHovered(true)}
             onHoverEnd={() => setIsHovered(false)}
-            onClick={onClick}
+            onClick={onPlay}
         >
             <div className="card-image">
                 <img
-                    src={episode.thumbnail}
-                    alt={episode.title}
+                    src={playlist.thumbnail || `https://ui-avatars.com/api/?name=${encodeURIComponent(playlist.name)}&background=1a1a2e&color=fff&size=300`}
+                    alt={playlist.name}
                     loading="lazy"
                 />
                 <div className="card-overlay">
@@ -592,20 +630,17 @@ const EpisodeCard = ({ episode, index, onClick }) => {
                         animate={{ scale: isHovered ? 1 : 0 }}
                         transition={{ type: 'spring', stiffness: 400 }}
                     >
-                        <Play size={32} fill="white" />
+                        <Play size={28} fill="white" />
                     </motion.div>
                 </div>
-                <span className="episode-number">E{index}</span>
+                <span className="episode-badge">{playlist.episodeCount} Eps</span>
             </div>
             <div className="card-info">
-                <h3 className="card-title">{episode.title}</h3>
-                <span className="card-package">{episode.packageName}</span>
+                <h3 className="card-title">{playlist.name}</h3>
             </div>
 
             <style>{`
-                .episode-card {
-                    flex-shrink: 0;
-                    width: 180px;
+                .playlist-card {
                     cursor: pointer;
                     border-radius: 12px;
                     overflow: hidden;
@@ -613,14 +648,14 @@ const EpisodeCard = ({ episode, index, onClick }) => {
                     transition: box-shadow 0.3s;
                 }
 
-                .episode-card:hover {
+                .playlist-card:hover {
                     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
                 }
 
                 .card-image {
                     position: relative;
                     width: 100%;
-                    height: 240px;
+                    height: 220px;
                     overflow: hidden;
                 }
 
@@ -631,7 +666,7 @@ const EpisodeCard = ({ episode, index, onClick }) => {
                     transition: transform 0.3s;
                 }
 
-                .episode-card:hover .card-image img {
+                .playlist-card:hover .card-image img {
                     transform: scale(1.1);
                 }
 
@@ -644,8 +679,8 @@ const EpisodeCard = ({ episode, index, onClick }) => {
                     background: linear-gradient(
                         180deg,
                         transparent 0%,
-                        rgba(0, 0, 0, 0.3) 60%,
-                        rgba(0, 0, 0, 0.7) 100%
+                        rgba(0, 0, 0, 0.4) 60%,
+                        rgba(0, 0, 0, 0.8) 100%
                     );
                     display: flex;
                     align-items: center;
@@ -654,7 +689,7 @@ const EpisodeCard = ({ episode, index, onClick }) => {
                     transition: opacity 0.2s;
                 }
 
-                .episode-card:hover .card-overlay {
+                .playlist-card:hover .card-overlay {
                     opacity: 1;
                 }
 
@@ -669,15 +704,15 @@ const EpisodeCard = ({ episode, index, onClick }) => {
                     box-shadow: 0 4px 20px rgba(229, 9, 20, 0.5);
                 }
 
-                .episode-number {
+                .episode-badge {
                     position: absolute;
                     top: 8px;
-                    left: 8px;
+                    right: 8px;
                     padding: 4px 10px;
-                    background: rgba(0, 0, 0, 0.7);
+                    background: rgba(0, 0, 0, 0.75);
                     backdrop-filter: blur(4px);
                     border-radius: 6px;
-                    font-size: 12px;
+                    font-size: 11px;
                     font-weight: 700;
                     color: #fff;
                 }
@@ -690,26 +725,17 @@ const EpisodeCard = ({ episode, index, onClick }) => {
                     font-size: 14px;
                     font-weight: 600;
                     color: #fff;
-                    margin-bottom: 4px;
                     display: -webkit-box;
                     -webkit-line-clamp: 2;
                     -webkit-box-orient: vertical;
                     overflow: hidden;
                     line-height: 1.3;
-                }
-
-                .card-package {
-                    font-size: 12px;
-                    color: #888;
+                    margin: 0;
                 }
 
                 @media (max-width: 768px) {
-                    .episode-card {
-                        width: 140px;
-                    }
-
                     .card-image {
-                        height: 190px;
+                        height: 180px;
                     }
 
                     .card-title {
@@ -725,16 +751,11 @@ const EpisodeCard = ({ episode, index, onClick }) => {
 const LoadingState = () => (
     <div className="loading-state">
         <div className="loading-hero" />
-        {[1, 2, 3].map(row => (
-            <div key={row} className="loading-row">
-                <div className="loading-title" />
-                <div className="loading-cards">
-                    {[1, 2, 3, 4, 5, 6].map(card => (
-                        <div key={card} className="loading-card" />
-                    ))}
-                </div>
-            </div>
-        ))}
+        <div className="loading-grid">
+            {[1, 2, 3, 4, 5, 6].map(card => (
+                <div key={card} className="loading-card" />
+            ))}
+        </div>
     </div>
 );
 

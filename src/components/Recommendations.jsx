@@ -1,13 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, ChevronLeft, ChevronRight, Film, ChevronUp, ChevronDown } from 'lucide-react';
+import { Play, ChevronLeft, ChevronRight, Film } from 'lucide-react';
 
 const Recommendations = ({
     recommendations,
     currentUrl,
-    onPlayEpisode,
-    isExpanded,
-    onToggleExpand
+    onPlayEpisode
 }) => {
     const scrollRef = useRef(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -56,7 +54,7 @@ const Recommendations = ({
             transition={{ duration: 0.4 }}
         >
             {/* Header */}
-            <div className="rec-header" onClick={onToggleExpand}>
+            <div className="rec-header">
                 <div className="rec-header-left">
                     <Film size={18} />
                     <h3 className="rec-title">{packageName}</h3>
@@ -64,13 +62,9 @@ const Recommendations = ({
                         {currentIndex + 1} / {episodes.length}
                     </span>
                 </div>
-                <button className="expand-btn">
-                    {isExpanded ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
-                    <span>{isExpanded ? 'Collapse' : 'More Episodes'}</span>
-                </button>
             </div>
 
-            {/* Horizontal Carousel (Always Visible) */}
+            {/* Horizontal Carousel */}
             <div className="rec-carousel-wrapper">
                 <AnimatePresence>
                     {canScrollLeft && (
@@ -145,53 +139,6 @@ const Recommendations = ({
                 </AnimatePresence>
             </div>
 
-            {/* Expanded Grid View */}
-            <AnimatePresence>
-                {isExpanded && (
-                    <motion.div
-                        className="rec-grid"
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                    >
-                        {episodes.map((episode, index) => {
-                            const isCurrent = episode.url === currentUrl;
-                            return (
-                                <motion.div
-                                    key={episode.id}
-                                    className={`rec-grid-card ${isCurrent ? 'rec-grid-current' : ''}`}
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    onClick={() => !isCurrent && onPlayEpisode(episode)}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: index * 0.03 }}
-                                >
-                                    <div className="rec-grid-thumb">
-                                        <img src={episode.thumbnail} alt="" />
-                                        {isCurrent && (
-                                            <div className="grid-now-playing">
-                                                <span className="pulse-dot" />
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="rec-grid-info">
-                                        <span className="rec-grid-num">E{index + 1}</span>
-                                        <span className="rec-grid-title">{episode.title}</span>
-                                    </div>
-                                    {!isCurrent && (
-                                        <div className="rec-grid-play">
-                                            <Play size={16} fill="white" />
-                                        </div>
-                                    )}
-                                </motion.div>
-                            );
-                        })}
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
             <style>{`
                 .recommendations-container {
                     background: linear-gradient(180deg, #0a0a0a 0%, #141414 100%);
@@ -204,7 +151,6 @@ const Recommendations = ({
                     align-items: center;
                     justify-content: space-between;
                     padding: 0 16px 12px;
-                    cursor: pointer;
                 }
 
                 .rec-header-left {
@@ -226,25 +172,6 @@ const Recommendations = ({
                     padding: 3px 10px;
                     background: rgba(255, 255, 255, 0.1);
                     border-radius: 10px;
-                }
-
-                .expand-btn {
-                    display: flex;
-                    align-items: center;
-                    gap: 6px;
-                    padding: 8px 14px;
-                    background: rgba(255, 255, 255, 0.1);
-                    border: none;
-                    border-radius: 20px;
-                    color: #fff;
-                    font-size: 13px;
-                    font-weight: 500;
-                    cursor: pointer;
-                    transition: background 0.2s;
-                }
-
-                .expand-btn:hover {
-                    background: rgba(255, 255, 255, 0.15);
                 }
 
                 .rec-carousel-wrapper {
@@ -403,107 +330,6 @@ const Recommendations = ({
                     line-height: 1.3;
                 }
 
-                /* Expanded Grid */
-                .rec-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-                    gap: 10px;
-                    padding: 16px;
-                    margin-top: 8px;
-                    border-top: 1px solid rgba(255, 255, 255, 0.05);
-                    overflow: hidden;
-                }
-
-                .rec-grid-card {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    padding: 10px;
-                    background: rgba(255, 255, 255, 0.05);
-                    border-radius: 10px;
-                    cursor: pointer;
-                    border: 1px solid transparent;
-                    transition: all 0.2s;
-                }
-
-                .rec-grid-card:hover {
-                    background: rgba(255, 255, 255, 0.1);
-                }
-
-                .rec-grid-current {
-                    background: rgba(229, 9, 20, 0.15);
-                    border-color: rgba(229, 9, 20, 0.5);
-                }
-
-                .rec-grid-thumb {
-                    position: relative;
-                    width: 60px;
-                    height: 80px;
-                    border-radius: 6px;
-                    overflow: hidden;
-                    flex-shrink: 0;
-                }
-
-                .rec-grid-thumb img {
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                }
-
-                .grid-now-playing {
-                    position: absolute;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    width: 24px;
-                    height: 24px;
-                    background: rgba(229, 9, 20, 0.9);
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-
-                .rec-grid-info {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 4px;
-                    min-width: 0;
-                }
-
-                .rec-grid-num {
-                    font-size: 11px;
-                    font-weight: 700;
-                    color: #888;
-                }
-
-                .rec-grid-title {
-                    font-size: 13px;
-                    font-weight: 500;
-                    color: #fff;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                }
-
-                .rec-grid-play {
-                    width: 32px;
-                    height: 32px;
-                    background: rgba(255, 255, 255, 0.1);
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    flex-shrink: 0;
-                    opacity: 0;
-                    transition: opacity 0.2s;
-                }
-
-                .rec-grid-card:hover .rec-grid-play {
-                    opacity: 1;
-                }
-
                 @media (max-width: 768px) {
                     .rec-scroll-btn {
                         display: none;
@@ -515,14 +341,6 @@ const Recommendations = ({
 
                     .rec-card-image {
                         height: 150px;
-                    }
-
-                    .rec-grid {
-                        grid-template-columns: 1fr;
-                    }
-
-                    .expand-btn span {
-                        display: none;
                     }
                 }
             `}</style>

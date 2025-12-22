@@ -12,7 +12,6 @@ function App() {
   const [showLibrary, setShowLibrary] = useState(false);
   const [playlists, setPlaylists] = useState([]);
   const [recommendations, setRecommendations] = useState(null);
-  const [showRecommendations, setShowRecommendations] = useState(true);
 
   // Update recommendations when video or playlists change
   useEffect(() => {
@@ -23,11 +22,6 @@ function App() {
       setRecommendations(null);
     }
   }, [currentVideoUrl, playlists]);
-
-  const handleUrlSubmit = (url) => {
-    setCurrentVideoUrl(url);
-    setCurrentVideoTitle('');
-  };
 
   const handlePlayFromLibrary = (url, title) => {
     setCurrentVideoUrl(url);
@@ -58,12 +52,9 @@ function App() {
   return (
     <div style={styles.appContainer}>
       <Header
-        onUrlSubmit={handleUrlSubmit}
         onOpenLibrary={() => setShowLibrary(true)}
         onGoHome={handleGoHome}
         showHomeButton={!!currentVideoUrl}
-        playlists={playlists}
-        onPlayVideo={handlePlayFromHome}
       />
 
       <main style={styles.mainContent}>
@@ -80,8 +71,6 @@ function App() {
                 recommendations={recommendations}
                 currentUrl={currentVideoUrl}
                 onPlayEpisode={handlePlayFromRecommendation}
-                isExpanded={showRecommendations}
-                onToggleExpand={() => setShowRecommendations(!showRecommendations)}
               />
             )}
           </>

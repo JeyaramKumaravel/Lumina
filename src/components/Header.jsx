@@ -1,11 +1,8 @@
-import React, { useState } from 'react';
-import { Search, Library, Home } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import SearchOverlay from './SearchOverlay';
+import React from 'react';
+import { Library, Home } from 'lucide-react';
+import { motion } from 'framer-motion';
 
-const Header = ({ onUrlSubmit, onOpenLibrary, onGoHome, showHomeButton, playlists, onPlayVideo }) => {
-    const [showMobileSearch, setShowMobileSearch] = useState(false);
-
+const Header = ({ onOpenLibrary, onGoHome, showHomeButton }) => {
     return (
         <header className="header">
             <div className="header-left">
@@ -15,7 +12,6 @@ const Header = ({ onUrlSubmit, onOpenLibrary, onGoHome, showHomeButton, playlist
                 </div>
             </div>
 
-            {/* Desktop Search Button */}
             <div className="header-right">
                 {showHomeButton && (
                     <motion.button
@@ -32,39 +28,12 @@ const Header = ({ onUrlSubmit, onOpenLibrary, onGoHome, showHomeButton, playlist
                 <motion.button
                     whileHover={{ scale: 1.05 }}
                     className="icon-btn"
-                    onClick={() => setShowMobileSearch(true)}
-                >
-                    <Search size={22} />
-                </motion.button>
-
-                <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    className="icon-btn"
                     onClick={onOpenLibrary}
                     title="Media Library"
                 >
                     <Library size={22} />
                 </motion.button>
             </div>
-
-            {/* Fullscreen Search Overlay */}
-            <AnimatePresence>
-                {showMobileSearch && (
-                    <SearchOverlay
-                        isOpen={showMobileSearch}
-                        onClose={() => setShowMobileSearch(false)}
-                        onSubmit={(query) => {
-                            onUrlSubmit(query);
-                            setShowMobileSearch(false);
-                        }}
-                        playlists={playlists}
-                        onPlayVideo={(url, title, packageName) => {
-                            onPlayVideo(url, title, packageName);
-                            setShowMobileSearch(false);
-                        }}
-                    />
-                )}
-            </AnimatePresence>
 
             <style>{`
                 .header {
