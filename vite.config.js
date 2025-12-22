@@ -33,7 +33,7 @@ export default defineConfig({
   ],
   server: {
     allowedHosts: [
-      '0.0.0.0'
+      'luminastream.onrender.com'
     ],
   },
 })
