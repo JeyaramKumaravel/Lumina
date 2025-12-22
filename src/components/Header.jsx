@@ -1,24 +1,15 @@
 import React, { useState } from 'react';
-import { Search, Bell, User, Menu, Video, Mic, Library } from 'lucide-react';
+import { Search, Library, Home } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import SearchOverlay from './SearchOverlay';
 
-const Header = ({ onUrlSubmit, onOpenLibrary }) => {
-    const [url, setUrl] = useState('');
+const Header = ({ onUrlSubmit, onOpenLibrary, onGoHome, showHomeButton, playlists, onPlayVideo }) => {
     const [showMobileSearch, setShowMobileSearch] = useState(false);
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (url.trim()) {
-            onUrlSubmit(url);
-            setShowMobileSearch(false);
-        }
-    };
 
     return (
         <header className="header">
             <div className="header-left">
-                <div className="logo">
+                <div className="logo" onClick={onGoHome} style={{ cursor: 'pointer' }}>
                     <img src="/icon.png" alt="Lumina" style={{ width: 32, height: 32, objectFit: 'contain' }} />
                     <span className="logo-text">Lumina</span>
                 </div>
@@ -26,6 +17,18 @@ const Header = ({ onUrlSubmit, onOpenLibrary }) => {
 
             {/* Desktop Search Button */}
             <div className="header-right">
+                {showHomeButton && (
+                    <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="icon-btn home-btn"
+                        onClick={onGoHome}
+                        title="Home"
+                    >
+                        <Home size={22} />
+                    </motion.button>
+                )}
+
                 <motion.button
                     whileHover={{ scale: 1.05 }}
                     className="icon-btn"
@@ -54,6 +57,11 @@ const Header = ({ onUrlSubmit, onOpenLibrary }) => {
                             onUrlSubmit(query);
                             setShowMobileSearch(false);
                         }}
+                        playlists={playlists}
+                        onPlayVideo={(url, title, packageName) => {
+                            onPlayVideo(url, title, packageName);
+                            setShowMobileSearch(false);
+                        }}
                     />
                 )}
             </AnimatePresence>
@@ -65,10 +73,12 @@ const Header = ({ onUrlSubmit, onOpenLibrary }) => {
                     align-items: center;
                     padding: 0 16px;
                     height: 56px;
-                    background-color: #0f0f0f;
+                    background-color: rgba(15, 15, 15, 0.95);
+                    backdrop-filter: blur(10px);
                     position: sticky;
                     top: 0;
                     z-index: 100;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
                 }
                 
                 .header-left {
@@ -80,133 +90,56 @@ const Header = ({ onUrlSubmit, onOpenLibrary }) => {
                 .logo {
                     display: flex;
                     align-items: center;
-                    gap: 6px;
+                    gap: 8px;
                     cursor: pointer;
+                    transition: opacity 0.2s;
+                }
+
+                .logo:hover {
+                    opacity: 0.8;
                 }
                 
                 .logo-text {
-                    font-size: 20px;
+                    font-size: 22px;
                     font-weight: 700;
                     letter-spacing: -0.5px;
                     font-family: 'Oswald', 'Roboto', sans-serif;
-                }
-                
-                .header-center {
-                    flex: 1;
-                    display: flex;
-                    justify-content: center;
-                    max-width: 640px;
-                    margin: 0 40px;
-                }
-                
-                .search-form {
-                    display: flex;
-                    width: 100%;
-                }
-                
-                .search-input-container {
-                    flex: 1;
-                    background: #121212;
-                    border: 1px solid #303030;
-                    border-radius: 40px 0 0 40px;
-                    padding: 0 16px;
-                    height: 40px;
-                    display: flex;
-                    align-items: center;
-                }
-                
-                .search-input {
-                    width: 100%;
-                    font-size: 15px;
-                    color: white;
-                }
-                
-                .search-input::placeholder {
-                    color: #888;
-                }
-                
-                .search-btn {
-                    height: 40px;
-                    width: 64px;
-                    background: #222;
-                    border: 1px solid #303030;
-                    border-left: none;
-                    border-radius: 0 40px 40px 0;
-                    color: white;
+                    background: linear-gradient(135deg, #fff 0%, #888 100%);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
                 }
                 
                 .header-right {
                     display: flex;
                     align-items: center;
-                    gap: 16px;
+                    gap: 8px;
                 }
                 
                 .icon-btn {
-                    padding: 8px;
+                    padding: 10px;
                     border-radius: 50%;
                     color: white;
+                    background: transparent;
+                    border: none;
+                    cursor: pointer;
+                    transition: background 0.2s;
                 }
                 
                 .icon-btn:hover {
                     background: rgba(255, 255, 255, 0.1);
                 }
-                
-                .profile-icon {
-                    width: 32px;
-                    height: 32px;
-                    border-radius: 50%;
-                    background: linear-gradient(135deg, #8e44ad, #3498db);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: pointer;
+
+                .home-btn {
+                    background: rgba(229, 9, 20, 0.15);
+                    color: #e50914;
                 }
-                
-                .mobile-only {
-                    display: none;
-                }
-                
-                .mobile-search-dropdown {
-                    position: absolute;
-                    top: 56px;
-                    left: 0;
-                    right: 0;
-                    background: #0f0f0f;
-                    padding: 12px 16px;
-                    border-bottom: 1px solid #303030;
-                }
-                
-                .mobile-search-form {
-                    display: flex;
-                    gap: 8px;
-                }
-                
-                .mobile-search-input {
-                    flex: 1;
-                    background: #121212;
-                    border: 1px solid #303030;
-                    border-radius: 8px;
-                    padding: 10px 14px;
-                    font-size: 15px;
-                    color: white;
-                }
-                
-                .mobile-search-btn {
-                    padding: 10px 16px;
-                    background: var(--accent, #ff0000);
-                    border-radius: 8px;
-                    color: white;
+
+                .home-btn:hover {
+                    background: rgba(229, 9, 20, 0.25);
                 }
                 
                 @media (max-width: 768px) {
-                    .desktop-only {
-                        display: none !important;
-                    }
-                    
-                    .mobile-only {
-                        display: flex !important;
-                    }
-                    
                     .header {
                         padding: 0 12px;
                     }
@@ -216,7 +149,11 @@ const Header = ({ onUrlSubmit, onOpenLibrary }) => {
                     }
                     
                     .logo-text {
-                        font-size: 18px;
+                        font-size: 20px;
+                    }
+
+                    .icon-btn {
+                        padding: 8px;
                     }
                 }
             `}</style>

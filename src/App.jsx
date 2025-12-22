@@ -1,19 +1,58 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import VideoPlayer from './components/VideoPlayer';
 import Library from './components/Library';
+import HomePage from './components/HomePage';
+import Recommendations from './components/Recommendations';
+import { getPackageRecommendations } from './utils/m3uPlaylistService';
 
 function App() {
   const [currentVideoUrl, setCurrentVideoUrl] = useState('');
+  const [currentVideoTitle, setCurrentVideoTitle] = useState('');
   const [showLibrary, setShowLibrary] = useState(false);
+  const [playlists, setPlaylists] = useState([]);
+  const [recommendations, setRecommendations] = useState(null);
+  const [showRecommendations, setShowRecommendations] = useState(true);
+
+  // Update recommendations when video or playlists change
+  useEffect(() => {
+    if (currentVideoUrl && playlists.length > 0) {
+      const recs = getPackageRecommendations(playlists, currentVideoUrl);
+      setRecommendations(recs);
+    } else {
+      setRecommendations(null);
+    }
+  }, [currentVideoUrl, playlists]);
 
   const handleUrlSubmit = (url) => {
     setCurrentVideoUrl(url);
+    setCurrentVideoTitle('');
   };
 
   const handlePlayFromLibrary = (url, title) => {
     setCurrentVideoUrl(url);
+    setCurrentVideoTitle(title || '');
     setShowLibrary(false);
+  };
+
+  const handlePlayFromHome = (url, title, packageName) => {
+    setCurrentVideoUrl(url);
+    setCurrentVideoTitle(title || '');
+  };
+
+  const handlePlayFromRecommendation = (episode) => {
+    setCurrentVideoUrl(episode.url);
+    setCurrentVideoTitle(episode.title);
+  };
+
+  const handlePlaylistsLoaded = (loadedPlaylists) => {
+    setPlaylists(loadedPlaylists);
+  };
+
+  const handleGoHome = () => {
+    setCurrentVideoUrl('');
+    setCurrentVideoTitle('');
+    setRecommendations(null);
   };
 
   return (
@@ -21,10 +60,34 @@ function App() {
       <Header
         onUrlSubmit={handleUrlSubmit}
         onOpenLibrary={() => setShowLibrary(true)}
+        onGoHome={handleGoHome}
+        showHomeButton={!!currentVideoUrl}
+        playlists={playlists}
+        onPlayVideo={handlePlayFromHome}
       />
+
       <main style={styles.mainContent}>
-        <VideoPlayer videoUrl={currentVideoUrl} />
+        {!currentVideoUrl ? (
+          <HomePage
+            onPlayVideo={handlePlayFromHome}
+            onPlaylistsLoaded={handlePlaylistsLoaded}
+          />
+        ) : (
+          <>
+            <VideoPlayer videoUrl={currentVideoUrl} />
+            {recommendations && (
+              <Recommendations
+                recommendations={recommendations}
+                currentUrl={currentVideoUrl}
+                onPlayEpisode={handlePlayFromRecommendation}
+                isExpanded={showRecommendations}
+                onToggleExpand={() => setShowRecommendations(!showRecommendations)}
+              />
+            )}
+          </>
+        )}
       </main>
+
       <Library
         isOpen={showLibrary}
         onClose={() => setShowLibrary(false)}
