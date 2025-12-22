@@ -16,7 +16,8 @@ const BASE_KEYS = {
     LIBRARY: 'mediaLibrary',
     PLAYLISTS: 'mediaPlaylists',
     HISTORY: 'watchHistory',
-    FAVORITES: 'favorites'
+    FAVORITES: 'favorites',
+    CONTINUE_WATCHING: 'continueWatching'
 };
 
 // Generate unique ID
@@ -147,6 +148,72 @@ export const clearHistory = () => {
 export const removeFromHistory = (id) => {
     const history = getHistory().filter(item => item.id !== id);
     localStorage.setItem(getKey(BASE_KEYS.HISTORY), JSON.stringify(history));
+};
+
+// ===== CONTINUE WATCHING (Video Progress) =====
+
+export const getContinueWatching = () => {
+    try {
+        return JSON.parse(localStorage.getItem(getKey(BASE_KEYS.CONTINUE_WATCHING))) || [];
+    } catch {
+        return [];
+    }
+};
+
+/**
+ * Save video progress for resume later
+ * Only saves if between 5% and 95% watched
+ */
+export const saveVideoProgress = (url, currentTime, duration, title = 'Video', thumbnail = null) => {
+    if (!url || !duration || duration === Infinity) return;
+
+    const progressPercent = (currentTime / duration) * 100;
+
+    // Only save if between 5% and 95%
+    if (progressPercent < 5 || progressPercent > 95) return;
+
+    let continueWatching = getContinueWatching();
+
+    // Remove existing entry for this URL
+    continueWatching = continueWatching.filter(i => i.url !== url);
+
+    const newItem = {
+        id: generateId(),
+        url,
+        title,
+        thumbnail,
+        currentTime,
+        duration,
+        progressPercent,
+        lastWatched: new Date().toISOString()
+    };
+
+    // Add to beginning (most recent first)
+    continueWatching.unshift(newItem);
+
+    // Keep only last 20 items
+    if (continueWatching.length > 20) {
+        continueWatching = continueWatching.slice(0, 20);
+    }
+
+    localStorage.setItem(getKey(BASE_KEYS.CONTINUE_WATCHING), JSON.stringify(continueWatching));
+    return newItem;
+};
+
+/**
+ * Get saved progress for a specific video
+ */
+export const getVideoProgress = (url) => {
+    const continueWatching = getContinueWatching();
+    return continueWatching.find(i => i.url === url) || null;
+};
+
+/**
+ * Clear progress when video is completed (>95% watched)
+ */
+export const clearVideoProgress = (url) => {
+    const continueWatching = getContinueWatching().filter(i => i.url !== url);
+    localStorage.setItem(getKey(BASE_KEYS.CONTINUE_WATCHING), JSON.stringify(continueWatching));
 };
 
 // ===== PLAYLISTS =====

@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, ChevronLeft, ChevronRight, Star, Clock, Film, RefreshCw, Search, X, Link, Tv, Clapperboard, MonitorPlay } from 'lucide-react';
 import { fetchAllPlaylists, getFeaturedPlaylist, searchPlaylists } from '../utils/m3uPlaylistService';
+import ContinueWatching from './ContinueWatching';
 
-const HomePage = ({ onPlayVideo, onPlaylistsLoaded }) => {
+const HomePage = ({ onPlayVideo, onPlaylistsLoaded, refreshContinueWatching }) => {
     const [playlists, setPlaylists] = useState([]);
     const [featuredPlaylist, setFeaturedPlaylist] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -193,6 +194,14 @@ const HomePage = ({ onPlayVideo, onPlaylistsLoaded }) => {
                     </motion.div>
                 )}
             </div>
+
+            {/* Continue Watching Section */}
+            {!searchQuery && (
+                <ContinueWatching
+                    onPlay={(url, title, currentTime) => onPlayVideo(url, title, currentTime)}
+                    refreshTrigger={refreshContinueWatching}
+                />
+            )}
 
             {/* Hero Section */}
             {featuredPlaylist && !searchQuery && (

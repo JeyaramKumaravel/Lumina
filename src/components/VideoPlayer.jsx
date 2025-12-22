@@ -15,10 +15,11 @@ import VideoMetadata from './VideoMetadata';
 import BottomSheet from './BottomSheet'; // Import BottomSheet
 import {
     saveToLibrary, addToHistory, toggleFavorite, isFavorite,
-    getPlaylists, addToPlaylist, removeFromPlaylist, createPlaylist // Import playlist utils
+    getPlaylists, addToPlaylist, removeFromPlaylist, createPlaylist,
+    saveVideoProgress, clearVideoProgress // Continue watching
 } from '../utils/libraryStorage';
 
-const VideoPlayer = ({ videoUrl }) => {
+const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '' }) => {
     const videoRef = useRef(null);
     const containerRef = useRef(null);
     const fileInputRef = useRef(null);
@@ -113,6 +114,7 @@ const VideoPlayer = ({ videoUrl }) => {
     const gestureActiveRef = useRef(false);
     const initialVolumeRef = useRef(1);
     const initialBrightnessRef = useRef(1);
+    const lastSaveTimeRef = useRef(null);
 
     let controlsTimeout = useRef(null);
 
@@ -269,6 +271,10 @@ const VideoPlayer = ({ videoUrl }) => {
             hls.loadSource(url);
             hls.attachMedia(video);
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                // Resume from saved position
+                if (resumeTime > 0) {
+                    video.currentTime = resumeTime;
+                }
                 video.play().catch(e => {
                     // Autoplay blocked - mute and retry
                     video.muted = true;
@@ -317,6 +323,10 @@ const VideoPlayer = ({ videoUrl }) => {
             const onCanPlay = () => {
                 video.removeEventListener('canplay', onCanPlay);
                 setIsBuffering(false);
+                // Resume from saved position
+                if (resumeTime > 0) {
+                    video.currentTime = resumeTime;
+                }
                 video.play().catch(e => {
                     // Autoplay blocked - mute and retry
                     video.muted = true;
@@ -371,6 +381,14 @@ const VideoPlayer = ({ videoUrl }) => {
             setProgress(progressPercent);
             setCurrentTime(formatTime(video.currentTime));
             setDuration(formatTime(video.duration));
+
+            // Save progress every 5 seconds
+            const now = Date.now();
+            if (!lastSaveTimeRef.current || now - lastSaveTimeRef.current > 5000) {
+                lastSaveTimeRef.current = now;
+                const title = videoTitle || currentChannel?.name || video.src.split('/').pop() || 'Video';
+                saveVideoProgress(videoUrl, video.currentTime, video.duration, title, null);
+            }
         }
     };
 
@@ -676,6 +694,8 @@ const VideoPlayer = ({ videoUrl }) => {
             setIsPlaying(false);
             setIsEnded(true);
             setShowControls(true);
+            // Clear progress when video completes
+            clearVideoProgress(videoUrl);
         }
     };
 

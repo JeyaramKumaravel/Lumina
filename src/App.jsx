@@ -9,9 +9,11 @@ import { getPackageRecommendations } from './utils/m3uPlaylistService';
 function App() {
   const [currentVideoUrl, setCurrentVideoUrl] = useState('');
   const [currentVideoTitle, setCurrentVideoTitle] = useState('');
+  const [resumeTime, setResumeTime] = useState(0);
   const [showLibrary, setShowLibrary] = useState(false);
   const [playlists, setPlaylists] = useState([]);
   const [recommendations, setRecommendations] = useState(null);
+  const [refreshContinueWatching, setRefreshContinueWatching] = useState(0);
 
   // Update recommendations when video or playlists change
   useEffect(() => {
@@ -23,20 +25,23 @@ function App() {
     }
   }, [currentVideoUrl, playlists]);
 
-  const handlePlayFromLibrary = (url, title) => {
+  const handlePlayFromLibrary = (url, title, resumeFrom = 0) => {
     setCurrentVideoUrl(url);
     setCurrentVideoTitle(title || '');
+    setResumeTime(resumeFrom);
     setShowLibrary(false);
   };
 
-  const handlePlayFromHome = (url, title, packageName) => {
+  const handlePlayFromHome = (url, title, resumeFrom = 0) => {
     setCurrentVideoUrl(url);
     setCurrentVideoTitle(title || '');
+    setResumeTime(typeof resumeFrom === 'number' ? resumeFrom : 0);
   };
 
   const handlePlayFromRecommendation = (episode) => {
     setCurrentVideoUrl(episode.url);
     setCurrentVideoTitle(episode.title);
+    setResumeTime(0); // Recommendations start fresh
   };
 
   const handlePlaylistsLoaded = (loadedPlaylists) => {
@@ -46,7 +51,10 @@ function App() {
   const handleGoHome = () => {
     setCurrentVideoUrl('');
     setCurrentVideoTitle('');
+    setResumeTime(0);
     setRecommendations(null);
+    // Trigger refresh of Continue Watching section
+    setRefreshContinueWatching(prev => prev + 1);
   };
 
   return (
@@ -62,10 +70,15 @@ function App() {
           <HomePage
             onPlayVideo={handlePlayFromHome}
             onPlaylistsLoaded={handlePlaylistsLoaded}
+            refreshContinueWatching={refreshContinueWatching}
           />
         ) : (
           <>
-            <VideoPlayer videoUrl={currentVideoUrl} />
+            <VideoPlayer
+              videoUrl={currentVideoUrl}
+              resumeTime={resumeTime}
+              videoTitle={currentVideoTitle}
+            />
             {recommendations && (
               <Recommendations
                 recommendations={recommendations}
@@ -98,3 +111,4 @@ const styles = {
 };
 
 export default App;
+
