@@ -1155,7 +1155,6 @@ video:picture-in-picture {
 .yt-metadata {
   padding: 12px 16px 0;
   color: var(--text-primary);
-  flex: 1;
 }
 
 .yt-video-title {

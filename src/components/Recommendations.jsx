@@ -144,6 +144,7 @@ const Recommendations = ({
                     background: linear-gradient(180deg, #0a0a0a 0%, #141414 100%);
                     border-top: 1px solid rgba(255, 255, 255, 0.1);
                     padding: 16px 0;
+                    margin-top: 0;
                 }
 
                 .rec-header {
