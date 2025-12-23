@@ -9,7 +9,8 @@ import {
     getLibrary, getFavorites, getHistory, getPlaylists,
     removeFromHistory, clearHistory, removeFromFavorites,
     createPlaylist, deletePlaylist, renamePlaylist,
-    removeFromPlaylist, exportLibrary, importLibrary
+    removeFromPlaylist, exportLibrary, importLibrary,
+    getContinueWatching, clearVideoProgress
 } from '../utils/libraryStorage';
 import {
     getAllProfiles, getActiveProfile, setActiveProfile,
@@ -24,6 +25,7 @@ const Library = ({ isOpen, onClose, onPlayVideo }) => {
     const [playlists, setPlaylists] = useState([]);
     const [favorites, setFavorites] = useState([]);
     const [library, setLibrary] = useState([]);
+    const [continueWatching, setContinueWatching] = useState([]);
 
     // Profile management
     const [profiles, setProfiles] = useState([]);
@@ -58,6 +60,7 @@ const Library = ({ isOpen, onClose, onPlayVideo }) => {
         setPlaylists(getPlaylists());
         setFavorites(getFavorites());
         setLibrary(getLibrary());
+        setContinueWatching(getContinueWatching());
     };
 
     const handleSwitchProfile = (profileId) => {
@@ -429,6 +432,71 @@ const Library = ({ isOpen, onClose, onPlayVideo }) => {
                     )}
                 </div>
             </div>
+
+            {/* Continue Watching Section */}
+            {continueWatching.length > 0 && (
+                <div className="yt-you-section">
+                    <div className="yt-you-section-header">
+                        <h2>Continue Watching</h2>
+                    </div>
+                    <div className="yt-you-carousel">
+                        {continueWatching.slice(0, 10).map((item, i) => (
+                            <div
+                                key={item.id || i}
+                                className="yt-playlist-card"
+                                onClick={() => onPlayVideo(item.url, item.title, item.currentTime)}
+                                style={{ position: 'relative' }}
+                            >
+                                <div className="yt-playlist-thumb" style={{ position: 'relative' }}>
+                                    <img src={item.thumbnail || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title)}&background=333&color=fff`} alt="" />
+                                    <div className="yt-playlist-count"><Play size={10} fill="white" /></div>
+                                    {/* Progress bar */}
+                                    <div style={{
+                                        position: 'absolute',
+                                        bottom: 0,
+                                        left: 0,
+                                        right: 0,
+                                        height: '4px',
+                                        background: 'rgba(255,255,255,0.2)'
+                                    }}>
+                                        <div style={{
+                                            width: `${item.progressPercent}%`,
+                                            height: '100%',
+                                            background: 'linear-gradient(90deg, #e50914, #ff4444)'
+                                        }} />
+                                    </div>
+                                </div>
+                                <div className="yt-playlist-details">
+                                    <span className="yt-playlist-title">{item.title}</span>
+                                    <span className="yt-playlist-privacy">{Math.floor((item.duration - item.currentTime) / 60)} min left</span>
+                                </div>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        clearVideoProgress(item.url);
+                                        refreshData();
+                                    }}
+                                    style={{
+                                        position: 'absolute',
+                                        top: '4px',
+                                        right: '4px',
+                                        background: 'rgba(0,0,0,0.7)',
+                                        border: 'none',
+                                        borderRadius: '50%',
+                                        padding: '4px',
+                                        color: 'white',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                    }}
+                                >
+                                    <X size={12} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* History Section */}
             {history.length > 0 && (
