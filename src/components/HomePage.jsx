@@ -756,7 +756,7 @@ const PlaylistCard = ({ playlist, onPlay, delay }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay, duration: 0.4 }}
-            whileHover={{ scale: 1.05, y: -8 }}
+            whileHover={{ scale: 1.03, y: -5 }}
             whileTap={{ scale: 0.98 }}
             onHoverStart={() => setIsHovered(true)}
             onHoverEnd={() => setIsHovered(false)}
@@ -768,20 +768,21 @@ const PlaylistCard = ({ playlist, onPlay, delay }) => {
                     alt={playlist.name}
                     loading="lazy"
                 />
+                <div className="card-glow" />
                 <div className="card-overlay">
                     <motion.div
                         className="play-icon"
-                        initial={{ scale: 0 }}
-                        animate={{ scale: isHovered ? 1 : 0 }}
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: isHovered ? 1 : 0, opacity: isHovered ? 1 : 0 }}
                         transition={{ type: 'spring', stiffness: 400 }}
                     >
-                        <Play size={28} fill="white" />
+                        <Play size={24} fill="white" />
                     </motion.div>
                 </div>
-                <span className="episode-badge">{playlist.episodeCount} Eps</span>
-            </div>
-            <div className="card-info">
-                <h3 className="card-title">{playlist.name}</h3>
+                <div className="card-bottom-gradient" />
+                <div className="card-info">
+                    <h3 className="card-title">{playlist.name}</h3>
+                </div>
             </div>
 
             <style>{`
@@ -789,18 +790,19 @@ const PlaylistCard = ({ playlist, onPlay, delay }) => {
                     cursor: pointer;
                     border-radius: 12px;
                     overflow: hidden;
-                    background: #1a1a1a;
-                    transition: box-shadow 0.3s;
+                    background: #0d0d0d;
+                    transition: box-shadow 0.3s, transform 0.3s;
+                    position: relative;
                 }
 
                 .playlist-card:hover {
-                    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+                    box-shadow: 0 8px 32px rgba(180, 30, 30, 0.3), 0 0 60px rgba(180, 30, 30, 0.15);
                 }
 
                 .card-image {
                     position: relative;
                     width: 100%;
-                    height: 220px;
+                    aspect-ratio: 2 / 3;
                     overflow: hidden;
                 }
 
@@ -808,11 +810,31 @@ const PlaylistCard = ({ playlist, onPlay, delay }) => {
                     width: 100%;
                     height: 100%;
                     object-fit: cover;
-                    transition: transform 0.3s;
+                    transition: transform 0.4s ease;
                 }
 
                 .playlist-card:hover .card-image img {
-                    transform: scale(1.1);
+                    transform: scale(1.08);
+                }
+
+                .card-glow {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: radial-gradient(
+                        ellipse at center bottom,
+                        rgba(180, 30, 30, 0.25) 0%,
+                        transparent 60%
+                    );
+                    pointer-events: none;
+                    opacity: 0;
+                    transition: opacity 0.3s;
+                }
+
+                .playlist-card:hover .card-glow {
+                    opacity: 1;
                 }
 
                 .card-overlay {
@@ -821,17 +843,12 @@ const PlaylistCard = ({ playlist, onPlay, delay }) => {
                     left: 0;
                     right: 0;
                     bottom: 0;
-                    background: linear-gradient(
-                        180deg,
-                        transparent 0%,
-                        rgba(0, 0, 0, 0.4) 60%,
-                        rgba(0, 0, 0, 0.8) 100%
-                    );
+                    background: rgba(0, 0, 0, 0.3);
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     opacity: 0;
-                    transition: opacity 0.2s;
+                    transition: opacity 0.3s;
                 }
 
                 .playlist-card:hover .card-overlay {
@@ -839,31 +856,38 @@ const PlaylistCard = ({ playlist, onPlay, delay }) => {
                 }
 
                 .play-icon {
-                    width: 56px;
-                    height: 56px;
-                    background: rgba(229, 9, 20, 0.9);
+                    width: 50px;
+                    height: 50px;
+                    background: rgba(229, 9, 20, 0.95);
                     border-radius: 50%;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    box-shadow: 0 4px 20px rgba(229, 9, 20, 0.5);
+                    box-shadow: 0 4px 24px rgba(229, 9, 20, 0.6);
                 }
 
-                .episode-badge {
+                .card-bottom-gradient {
                     position: absolute;
-                    top: 8px;
-                    right: 8px;
-                    padding: 4px 10px;
-                    background: rgba(0, 0, 0, 0.75);
-                    backdrop-filter: blur(4px);
-                    border-radius: 6px;
-                    font-size: 11px;
-                    font-weight: 700;
-                    color: #fff;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    height: 50%;
+                    background: linear-gradient(
+                        180deg,
+                        transparent 0%,
+                        rgba(0, 0, 0, 0.6) 40%,
+                        rgba(0, 0, 0, 0.95) 100%
+                    );
+                    pointer-events: none;
                 }
 
                 .card-info {
-                    padding: 12px;
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    padding: 16px 12px;
+                    z-index: 2;
                 }
 
                 .card-title {
@@ -874,17 +898,18 @@ const PlaylistCard = ({ playlist, onPlay, delay }) => {
                     -webkit-line-clamp: 2;
                     -webkit-box-orient: vertical;
                     overflow: hidden;
-                    line-height: 1.3;
+                    line-height: 1.35;
                     margin: 0;
+                    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
                 }
 
                 @media (max-width: 768px) {
-                    .card-image {
-                        height: 180px;
+                    .card-title {
+                        font-size: 12px;
                     }
 
-                    .card-title {
-                        font-size: 13px;
+                    .card-info {
+                        padding: 12px 10px;
                     }
                 }
             `}</style>
