@@ -16,7 +16,7 @@ import BottomSheet from './BottomSheet'; // Import BottomSheet
 import {
     saveToLibrary, addToHistory, toggleFavorite, isFavorite,
     getPlaylists, addToPlaylist, removeFromPlaylist, createPlaylist,
-    saveVideoProgress, clearVideoProgress // Continue watching
+    saveVideoProgress, clearVideoProgress, updateHistoryProgress // Continue watching
 } from '../utils/libraryStorage';
 
 const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '' }) => {
@@ -388,6 +388,8 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '' }) => {
                 lastSaveTimeRef.current = now;
                 const title = videoTitle || currentChannel?.name || video.src.split('/').pop() || 'Video';
                 saveVideoProgress(videoUrl, video.currentTime, video.duration, title, null);
+                // Also save to history so progress persists even if dismissed from Continue Watching
+                updateHistoryProgress(videoUrl, video.currentTime, video.duration);
             }
         }
     };

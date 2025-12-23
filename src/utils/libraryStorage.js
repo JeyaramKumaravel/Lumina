@@ -150,6 +150,32 @@ export const removeFromHistory = (id) => {
     localStorage.setItem(getKey(BASE_KEYS.HISTORY), JSON.stringify(history));
 };
 
+/**
+ * Update history item with playback progress
+ * This keeps progress in history even if removed from Continue Watching
+ */
+export const updateHistoryProgress = (url, currentTime, duration) => {
+    if (!url || !duration || duration === Infinity) return;
+
+    const progressPercent = (currentTime / duration) * 100;
+    let history = getHistory();
+
+    history = history.map(item => {
+        if (item.url === url) {
+            return {
+                ...item,
+                currentTime,
+                duration,
+                progressPercent,
+                lastProgressUpdate: new Date().toISOString()
+            };
+        }
+        return item;
+    });
+
+    localStorage.setItem(getKey(BASE_KEYS.HISTORY), JSON.stringify(history));
+};
+
 // ===== CONTINUE WATCHING (Video Progress) =====
 
 export const getContinueWatching = () => {

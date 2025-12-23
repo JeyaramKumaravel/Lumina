@@ -507,14 +507,39 @@ const Library = ({ isOpen, onClose, onPlayVideo }) => {
                     </div>
                     <div className="yt-you-carousel">
                         {history.slice(0, 10).map((item, i) => (
-                            <div key={i} className="yt-playlist-card" onClick={() => onPlayVideo(item.url, item.title)}>
+                            <div
+                                key={i}
+                                className="yt-playlist-card"
+                                onClick={() => onPlayVideo(item.url, item.title, item.currentTime || 0)}
+                            >
                                 <div className="yt-playlist-thumb" style={{ position: 'relative' }}>
                                     <img src={item.thumbnail || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title)}&background=333&color=fff`} alt="" />
                                     <div className="yt-playlist-count"><Play size={10} fill="white" /></div>
+                                    {/* Progress bar for watched videos */}
+                                    {item.progressPercent > 0 && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            bottom: 0,
+                                            left: 0,
+                                            right: 0,
+                                            height: '4px',
+                                            background: 'rgba(255,255,255,0.2)'
+                                        }}>
+                                            <div style={{
+                                                width: `${item.progressPercent}%`,
+                                                height: '100%',
+                                                background: 'linear-gradient(90deg, #e50914, #ff4444)'
+                                            }} />
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="yt-playlist-details">
                                     <span className="yt-playlist-title">{item.title}</span>
-                                    <span className="yt-playlist-privacy">{item.channel || 'Video'}</span>
+                                    <span className="yt-playlist-privacy">
+                                        {item.currentTime && item.duration
+                                            ? `${Math.floor((item.duration - item.currentTime) / 60)} min left`
+                                            : item.channel || 'Video'}
+                                    </span>
                                 </div>
                             </div>
                         ))}
