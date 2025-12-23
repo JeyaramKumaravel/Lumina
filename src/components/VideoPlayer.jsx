@@ -1376,7 +1376,7 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '' }) => {
 };
 
 const styles = {
-    container: { display: 'flex', justifyContent: 'center', padding: '20px 0', backgroundColor: '#0f0f0f', minHeight: 'calc(100vh - 56px)' },
+    container: { display: 'flex', justifyContent: 'center', padding: '20px 0', backgroundColor: '#0f0f0f' },
     videoWrapper: { width: '100%', maxWidth: '1280px', aspectRatio: '16/9', backgroundColor: '#000', borderRadius: '12px', overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column', boxShadow: '0 4px 60px rgba(0,0,0,0.5)' },
     fullscreen: { maxWidth: '100vw', maxHeight: '100vh', borderRadius: 0, width: '100%', height: '100%', padding: 0, margin: 0, position: 'fixed', top: 0, left: 0, zIndex: 9999 },
     video: { width: '100%', height: '100%', objectFit: 'contain' },
