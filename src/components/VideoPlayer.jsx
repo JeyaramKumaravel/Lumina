@@ -76,6 +76,11 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
     const [movieQualityVariants, setMovieQualityVariants] = useState(null);
     const [selectedMovieQuality, setSelectedMovieQuality] = useState(null);
 
+    // Screen Lock State
+    const [isScreenLocked, setIsScreenLocked] = useState(false);
+    const [showLockButton, setShowLockButton] = useState(true);
+    const lockButtonTimeoutRef = useRef(null);
+
     // External Embed State (YouTube, Instagram, etc.)
     const [embedUrl, setEmbedUrl] = useState(null);
     const [embedType, setEmbedType] = useState(null); // 'youtube', 'instagram', 'twitter', etc.
@@ -803,7 +808,7 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
     };
 
     const handleTouchMove = (e) => {
-        if (!touchStartRef.current) return;
+        if (!touchStartRef.current || isScreenLocked) return;
         const currentX = e.touches[0].clientX;
         const currentY = e.touches[0].clientY;
         const deltaX = currentX - touchStartRef.current.x;
@@ -841,7 +846,7 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
     };
 
     const handleTouchEnd = (e) => {
-        if (!touchStartRef.current) return;
+        if (!touchStartRef.current || isScreenLocked) return;
         const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
         const containerWidth = containerRef.current ? containerRef.current.offsetWidth : window.innerWidth;
         const touchStartX = touchStartRef.current.x;
@@ -1007,10 +1012,67 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
                         <p style={{ color: 'white' }}>10s</p>
                     </div>
                 </div>
+            )}\r
+
+            {/* Screen Lock Overlay */}
+            {isScreenLocked && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 100,
+                        pointerEvents: 'auto'
+                    }}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        // Toggle lock button visibility
+                        setShowLockButton(prev => !prev);
+                        // Auto-hide after 3 seconds
+                        if (lockButtonTimeoutRef.current) clearTimeout(lockButtonTimeoutRef.current);
+                        lockButtonTimeoutRef.current = setTimeout(() => setShowLockButton(false), 3000);
+                    }}
+                >
+                    <AnimatePresence>
+                        {showLockButton && (
+                            <motion.button
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.8 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsScreenLocked(false);
+                                    setShowLockButton(true);
+                                    showGestureFeedback('Unlocked', <Lock size={24} />);
+                                }}
+                                style={{
+                                    background: 'rgba(0, 0, 0, 0.7)',
+                                    border: '2px solid rgba(255, 255, 255, 0.3)',
+                                    borderRadius: '50%',
+                                    width: 64,
+                                    height: 64,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'white',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <Lock size={28} />
+                            </motion.button>
+                        )}
+                    </AnimatePresence>
+                </div>
             )}
 
             <AnimatePresence>
-                {showControls && (
+                {showControls && !isScreenLocked && (
                     <>
                         {/* Top Bar - Title & Channel (YouTube Mobile Style) */}
                         <motion.div
@@ -1070,11 +1132,11 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
                                     <input
                                         type="range"
                                         min="0" max="100"
-                                        value={progress}
+                                        value={isNaN(progress) ? 0 : progress}
                                         onChange={handleProgressChange}
                                         className="yt-progress-bar"
                                         style={{
-                                            background: `linear-gradient(to right, #ff0000 ${progress}%, rgba(255,255,255,0.3) ${progress}%)`
+                                            background: `linear-gradient(to right, #ff0000 ${isNaN(progress) ? 0 : progress}%, rgba(255,255,255,0.3) ${isNaN(progress) ? 0 : progress}%)`
                                         }}
                                     />
                                 </div>
@@ -1180,7 +1242,7 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
                                 <ChevronRight size={20} />
                             </div>
 
-                            <div className="yt-sheet-item" onClick={() => { }}>
+                            <div className="yt-sheet-item" onClick={() => { setIsScreenLocked(true); setShowSettings(false); showGestureFeedback('Screen Locked', <Lock size={24} />); }}>
                                 <Lock size={22} />
                                 <span>Lock screen</span>
                             </div>
