@@ -79,21 +79,8 @@ const VideoMetadata = ({ video, channel, isLiked: propIsLiked, onLike, onDislike
                     {video?.title || channel?.name || 'Video Title'}
                 </h1>
 
-                {/* Merged Channel & Actions Row */}
+                {/* Actions Row */}
                 <div className="yt-metadata-actions-row">
-                    <div className="yt-channel-group">
-                        <img
-                            src={channel?.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(channel?.name || 'C')}&background=ff0000&color=fff&size=48`}
-                            alt=""
-                            className="yt-channel-avatar-large"
-                            onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=C&background=282828&color=fff&size=48` }}
-                        />
-                        <div className="yt-channel-info-stack">
-                            <span className="yt-channel-name-large">{channel?.name || 'Channel'}</span>
-                        </div>
-                    </div>
-
-                    <div className="yt-actions-divider"></div>
 
                     {/* Like/Dislike Pill */}
                     <div className="yt-like-dislike-pill">

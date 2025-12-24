@@ -4,7 +4,7 @@ import {
     FastForward, Rewind, Settings, Captions, PictureInPicture2,
     Maximize2, Timer, SkipForward, SkipBack, Tv, Heart, BookmarkPlus,
     ChevronDown, ChevronRight, Share2, Scissors, ThumbsUp, ThumbsDown,
-    MoreHorizontal, X, Flag, Lock, Sparkles, Download, Check, Sun
+    MoreHorizontal, X, Flag, Lock, Download, Check, Sun
 } from 'lucide-react';
 
 import { motion, AnimatePresence } from 'framer-motion';
@@ -51,8 +51,6 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
     // YouTube Premium Features State
     const [isPiP, setIsPiP] = useState(false);
     const [isTheaterMode, setIsTheaterMode] = useState(false);
-    const [isAmbientMode, setIsAmbientMode] = useState(true);
-    const [ambientColors, setAmbientColors] = useState(['#000', '#000']);
     const [sleepTimer, setSleepTimer] = useState(null);
     const [sleepTimerRemaining, setSleepTimerRemaining] = useState(0);
     const [autoplayEnabled, setAutoplayEnabled] = useState(true);
@@ -623,32 +621,6 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
         showGestureFeedback(isTheaterMode ? 'Default View' : 'Theater Mode', <Tv size={24} />);
     };
 
-    // Ambient Mode - Extract colors from video
-    useEffect(() => {
-        if (!isAmbientMode || !videoRef.current) return;
-
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        canvas.width = 16;
-        canvas.height = 9;
-
-        const extractColors = () => {
-            if (videoRef.current && !videoRef.current.paused && ctx) {
-                try {
-                    ctx.drawImage(videoRef.current, 0, 0, 16, 9);
-                    const topLeft = ctx.getImageData(0, 0, 1, 1).data;
-                    const bottomRight = ctx.getImageData(15, 8, 1, 1).data;
-                    setAmbientColors([
-                        `rgb(${topLeft[0]}, ${topLeft[1]}, ${topLeft[2]})`,
-                        `rgb(${bottomRight[0]}, ${bottomRight[1]}, ${bottomRight[2]})`
-                    ]);
-                } catch (e) { }
-            }
-        };
-
-        const interval = setInterval(extractColors, 500);
-        return () => clearInterval(interval);
-    }, [isAmbientMode, isPlaying]);
 
     // Sleep Timer
     const setSleepTimerDuration = (minutes) => {
@@ -1261,14 +1233,6 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
                                     <div className="yt-toggle-thumb" />
                                 </div>
                             </div>
-
-                            <div className="yt-sheet-item" onClick={() => setIsAmbientMode(!isAmbientMode)}>
-                                <Sparkles size={22} />
-                                <span>Ambient mode</span>
-                                <div className={`yt-sheet-toggle ${isAmbientMode ? 'active' : ''}`}>
-                                    <div className="yt-toggle-thumb" />
-                                </div>
-                            </div>
                         </motion.div>
                     </>
                 )}
@@ -1461,15 +1425,6 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
                     accept=".vtt,.srt"
                 />
 
-                {/* Ambient Mode Glow */}
-                {isAmbientMode && (
-                    <div
-                        className="ambient-glow"
-                        style={{
-                            background: `radial-gradient(ellipse at center, ${ambientColors[0]}40, ${ambientColors[1]}20, transparent 70%)`
-                        }}
-                    />
-                )}
 
                 <div className="yt-primary">
                     {videoPlayerContent}
@@ -1522,15 +1477,6 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
                 accept=".vtt,.srt"
             />
 
-            {/* Ambient Mode Glow */}
-            {isAmbientMode && (
-                <div
-                    className="ambient-glow"
-                    style={{
-                        background: `radial-gradient(ellipse at center, ${ambientColors[0]}40, ${ambientColors[1]}20, transparent 70%)`
-                    }}
-                />
-            )}
 
             <div className="yt-primary" style={{ width: '100%', maxWidth: '1280px', display: 'flex', flexDirection: 'column' }}>
                 {videoPlayerContent}
@@ -1538,8 +1484,11 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
                 {/* Video Metadata Section */}
                 <VideoMetadata
                     key={videoUrl}
-                    video={{ title: 'Video Playback', date: new Date().toLocaleDateString() }}
-                    channel={{ name: 'Local File / Stream', subscribers: 0 }}
+                    video={{ title: videoTitle || currentChannel?.name || 'Video Playback', date: new Date().toLocaleDateString() }}
+                    channel={{
+                        name: currentChannel?.packageName || 'Lumina Player',
+                        logo: currentChannel?.thumbnail || 'https://ui-avatars.com/api/?name=L&background=6366f1&color=fff&size=48'
+                    }}
                     onLike={() => { }}
                     onDislike={() => { }}
                     onShare={() => {
