@@ -19,7 +19,7 @@ import {
     saveVideoProgress, clearVideoProgress, updateHistoryProgress // Continue watching
 } from '../utils/libraryStorage';
 
-const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '' }) => {
+const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = null, onPlayNext = null }) => {
     const videoRef = useRef(null);
     const containerRef = useRef(null);
     const fileInputRef = useRef(null);
@@ -710,6 +710,23 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '' }) => {
             setShowControls(true);
             // Clear progress when video completes
             clearVideoProgress(videoUrl);
+
+            // Auto-play next for series only
+            if (autoplayEnabled && seriesData && seriesData.episodes && onPlayNext) {
+                const currentEpisode = seriesData.episodes.find(ep => ep.url === videoUrl);
+                // Check if it's a series (groupType === 'Series')
+                if (currentEpisode && currentEpisode.groupType === 'Series') {
+                    const currentIndex = seriesData.currentIndex;
+                    const nextIndex = currentIndex + 1;
+                    if (nextIndex < seriesData.episodes.length) {
+                        const nextEpisode = seriesData.episodes[nextIndex];
+                        showGestureFeedback('Next Episode', <SkipForward size={24} />);
+                        setTimeout(() => {
+                            onPlayNext(nextEpisode);
+                        }, 1500); // Short delay before auto-playing next
+                    }
+                }
+            }
         }
     };
 

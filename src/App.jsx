@@ -78,6 +78,8 @@ function App() {
               videoUrl={currentVideoUrl}
               resumeTime={resumeTime}
               videoTitle={currentVideoTitle}
+              seriesData={recommendations}
+              onPlayNext={handlePlayFromRecommendation}
             />
             {recommendations && (
               <Recommendations
