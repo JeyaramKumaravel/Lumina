@@ -45,9 +45,18 @@ const parseM3UContent = (content, packageName) => {
                 }
             }
 
+            // Extract quality from title (1080p, 720p, 480p, 360p)
+            const qualityMatch = title.match(/\b(1080p|720p|480p|360p)\b/i);
+            const quality = qualityMatch ? qualityMatch[1].toLowerCase() : null;
+
+            // Extract base title (remove quality suffix for grouping)
+            const baseTitle = cleanTitle(title).replace(/\s*(1080p|720p|480p|360p)\s*HD?\s*$/i, '').trim();
+
             currentEpisode = {
                 id: `${packageName}_${episodes.length}`,
                 title: cleanTitle(title),
+                baseTitle: baseTitle,
+                quality: quality,
                 thumbnail: logoMatch ? logoMatch[1] : null,
                 packageName: packageName,
                 groupType: groupType
@@ -65,7 +74,61 @@ const parseM3UContent = (content, packageName) => {
         }
     }
 
-    return episodes;
+    // Group movies with quality variants
+    return groupMoviesByQuality(episodes);
+};
+
+/**
+ * Group movies that have multiple quality versions
+ * Keeps series and other content unchanged
+ */
+const groupMoviesByQuality = (episodes) => {
+    const grouped = [];
+    const movieGroups = new Map(); // Map baseTitle -> array of quality variants
+
+    for (const episode of episodes) {
+        if (episode.groupType === 'Movies' && episode.quality) {
+            // This is a movie with quality info - group it
+            const key = `${episode.packageName}_${episode.baseTitle}_${episode.thumbnail}`;
+            if (!movieGroups.has(key)) {
+                movieGroups.set(key, []);
+            }
+            movieGroups.get(key).push(episode);
+        } else {
+            // Not a movie or no quality info - add directly
+            grouped.push(episode);
+        }
+    }
+
+    // Process movie groups
+    for (const [key, variants] of movieGroups) {
+        if (variants.length === 1) {
+            // Only one quality - add as regular episode
+            grouped.push(variants[0]);
+        } else {
+            // Multiple qualities - create grouped entry
+            // Sort by quality (highest first)
+            const qualityOrder = { '1080p': 4, '720p': 3, '480p': 2, '360p': 1 };
+            variants.sort((a, b) => (qualityOrder[b.quality] || 0) - (qualityOrder[a.quality] || 0));
+
+            // Create quality variants map
+            const qualityVariants = {};
+            for (const v of variants) {
+                qualityVariants[v.quality] = v.url;
+            }
+
+            // Use highest quality as primary, but show clean title
+            const primary = variants[0];
+            grouped.push({
+                ...primary,
+                title: primary.baseTitle, // Clean title without quality suffix
+                qualityVariants: qualityVariants, // All quality URLs
+                hasQualityOptions: true
+            });
+        }
+    }
+
+    return grouped;
 };
 
 /**

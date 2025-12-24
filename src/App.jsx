@@ -9,6 +9,7 @@ import { getPackageRecommendations } from './utils/m3uPlaylistService';
 function App() {
   const [currentVideoUrl, setCurrentVideoUrl] = useState('');
   const [currentVideoTitle, setCurrentVideoTitle] = useState('');
+  const [currentEpisode, setCurrentEpisode] = useState(null);
   const [resumeTime, setResumeTime] = useState(0);
   const [showLibrary, setShowLibrary] = useState(false);
   const [playlists, setPlaylists] = useState([]);
@@ -41,6 +42,7 @@ function App() {
   const handlePlayFromRecommendation = (episode) => {
     setCurrentVideoUrl(episode.url);
     setCurrentVideoTitle(episode.title);
+    setCurrentEpisode(episode);
     setResumeTime(0); // Recommendations start fresh
   };
 
@@ -51,6 +53,7 @@ function App() {
   const handleGoHome = () => {
     setCurrentVideoUrl('');
     setCurrentVideoTitle('');
+    setCurrentEpisode(null);
     setResumeTime(0);
     setRecommendations(null);
     // Trigger refresh of Continue Watching section
@@ -80,6 +83,8 @@ function App() {
               videoTitle={currentVideoTitle}
               seriesData={recommendations}
               onPlayNext={handlePlayFromRecommendation}
+              playlists={playlists}
+              onVideoUrlChange={(url, time) => { setCurrentVideoUrl(url); setResumeTime(time); }}
             />
             {recommendations && (
               <Recommendations

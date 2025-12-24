@@ -23,6 +23,26 @@ const BASE_KEYS = {
 // Generate unique ID
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
+/**
+ * Extract base URL for quality variant matching
+ * Removes quality indicators (1080p, 720p, 480p, 360p) from URL to find matches
+ * Returns the base URL pattern that would match all quality variants
+ */
+const extractBaseUrl = (url) => {
+    if (!url) return null;
+    // Replace quality indicators in URL with a placeholder pattern
+    return url.replace(/[_\-\.]?(1080p|720p|480p|360p)[_\-\.]?/gi, '_QUALITY_');
+};
+
+/**
+ * Check if two URLs are quality variants of the same video
+ */
+const areQualityVariants = (url1, url2) => {
+    if (!url1 || !url2) return false;
+    if (url1 === url2) return true;
+    return extractBaseUrl(url1) === extractBaseUrl(url2);
+};
+
 // ===== LIBRARY (All saved media) =====
 
 export const getLibrary = () => {
@@ -123,7 +143,8 @@ export const getHistory = () => {
 
 export const addToHistory = (item) => {
     let history = getHistory();
-    history = history.filter(i => i.url !== item.url);
+    // Remove exact match AND quality variants of same video
+    history = history.filter(i => !areQualityVariants(i.url, item.url));
 
     const newItem = {
         id: generateId(),
@@ -161,7 +182,8 @@ export const updateHistoryProgress = (url, currentTime, duration) => {
     let history = getHistory();
 
     history = history.map(item => {
-        if (item.url === url) {
+        // Match exact URL or quality variants
+        if (areQualityVariants(item.url, url)) {
             return {
                 ...item,
                 currentTime,
@@ -200,8 +222,8 @@ export const saveVideoProgress = (url, currentTime, duration, title = 'Video', t
 
     let continueWatching = getContinueWatching();
 
-    // Remove existing entry for this URL
-    continueWatching = continueWatching.filter(i => i.url !== url);
+    // Remove existing entry for this URL AND quality variants
+    continueWatching = continueWatching.filter(i => !areQualityVariants(i.url, url));
 
     const newItem = {
         id: generateId(),
@@ -227,18 +249,19 @@ export const saveVideoProgress = (url, currentTime, duration, title = 'Video', t
 };
 
 /**
- * Get saved progress for a specific video
+ * Get saved progress for a specific video (matches quality variants too)
  */
 export const getVideoProgress = (url) => {
     const continueWatching = getContinueWatching();
-    return continueWatching.find(i => i.url === url) || null;
+    return continueWatching.find(i => areQualityVariants(i.url, url)) || null;
 };
 
 /**
  * Clear progress when video is completed (>95% watched)
+ * Also clears quality variants
  */
 export const clearVideoProgress = (url) => {
-    const continueWatching = getContinueWatching().filter(i => i.url !== url);
+    const continueWatching = getContinueWatching().filter(i => !areQualityVariants(i.url, url));
     localStorage.setItem(getKey(BASE_KEYS.CONTINUE_WATCHING), JSON.stringify(continueWatching));
 };
 

@@ -19,7 +19,7 @@ import {
     saveVideoProgress, clearVideoProgress, updateHistoryProgress // Continue watching
 } from '../utils/libraryStorage';
 
-const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = null, onPlayNext = null }) => {
+const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = null, onPlayNext = null, playlists = [], onVideoUrlChange = null }) => {
     const videoRef = useRef(null);
     const containerRef = useRef(null);
     const fileInputRef = useRef(null);
@@ -68,9 +68,13 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
 
     // Playlist State
     const [showSaveSheet, setShowSaveSheet] = useState(false);
-    const [playlists, setPlaylists] = useState([]);
+    const [userPlaylists, setUserPlaylists] = useState([]);
     const [newPlaylistName, setNewPlaylistName] = useState('');
     const [showNewPlaylistInput, setShowNewPlaylistInput] = useState(false);
+
+    // Movie Quality Variants State
+    const [movieQualityVariants, setMovieQualityVariants] = useState(null);
+    const [selectedMovieQuality, setSelectedMovieQuality] = useState(null);
 
     // External Embed State (YouTube, Instagram, etc.)
     const [embedUrl, setEmbedUrl] = useState(null);
@@ -168,6 +172,36 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
             }
         };
     }, []);
+
+    // Detect movie quality variants from playlists
+    useEffect(() => {
+        if (!videoUrl || !playlists || playlists.length === 0) {
+            setMovieQualityVariants(null);
+            setSelectedMovieQuality(null);
+            return;
+        }
+
+        // Find current episode in playlists
+        for (const playlist of playlists) {
+            const episode = playlist.episodes.find(ep =>
+                ep.url === videoUrl ||
+                (ep.qualityVariants && Object.values(ep.qualityVariants).includes(videoUrl))
+            );
+            if (episode && episode.hasQualityOptions && episode.qualityVariants) {
+                setMovieQualityVariants(episode.qualityVariants);
+                // Determine current quality from URL
+                for (const [quality, url] of Object.entries(episode.qualityVariants)) {
+                    if (url === videoUrl) {
+                        setSelectedMovieQuality(quality);
+                        break;
+                    }
+                }
+                return;
+            }
+        }
+        setMovieQualityVariants(null);
+        setSelectedMovieQuality(null);
+    }, [videoUrl, playlists]);
 
     // Load Video or Playlist
     useEffect(() => {
@@ -526,7 +560,7 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
     // ===== PLAYLIST MANAGEMENT =====
 
     const handleSaveClick = () => {
-        setPlaylists(getPlaylists());
+        setUserPlaylists(getPlaylists());
         setShowSaveSheet(true);
         // Also save to library if not already
         if (!isFavorite(videoUrl)) {
@@ -546,14 +580,14 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
             addToPlaylist(playlistId, { url: videoUrl, title: currentChannel?.name || 'Video' });
             showGestureFeedback('Saved to playlist', <Check size={24} />);
         }
-        setPlaylists(getPlaylists()); // Refresh
+        setUserPlaylists(getPlaylists()); // Refresh
     };
 
     const handleCreateNewPlaylist = () => {
         if (newPlaylistName.trim()) {
             const newPl = createPlaylist(newPlaylistName.trim());
             addToPlaylist(newPl.id, { url: videoUrl, title: currentChannel?.name || 'Video' });
-            setPlaylists(getPlaylists());
+            setUserPlaylists(getPlaylists());
             setNewPlaylistName('');
             setShowNewPlaylistInput(false);
             showGestureFeedback('Playlist created', <Check size={24} />);
@@ -677,6 +711,23 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
             setShowQualityMenu(false);
             const label = levelIndex === -1 ? 'Auto' : `${qualityLevels.find(q => q.index === levelIndex)?.height}p`;
             showGestureFeedback(label, <Settings size={24} />);
+        }
+    };
+
+    // Switch movie quality (for grouped quality variants)
+    const switchMovieQuality = (quality) => {
+        if (!movieQualityVariants || !movieQualityVariants[quality]) return;
+
+        const currentTime = videoRef.current ? videoRef.current.currentTime : 0;
+        const newUrl = movieQualityVariants[quality];
+
+        setSelectedMovieQuality(quality);
+        setShowQualityMenu(false);
+        showGestureFeedback(quality.toUpperCase(), <Settings size={24} />);
+
+        // Switch to new quality URL with same timestamp
+        if (onVideoUrlChange) {
+            onVideoUrlChange(newUrl, currentTime);
         }
     };
 
@@ -1029,7 +1080,10 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
                                 </div>
                                 <span className="yt-time">{duration}</span>
                                 <span className="yt-quality-badge">
-                                    {currentQuality === -1 ? 'Auto' : `${qualityLevels.find(q => q.index === currentQuality)?.height || 720}p`}
+                                    {movieQualityVariants && selectedMovieQuality
+                                        ? selectedMovieQuality.toUpperCase()
+                                        : (currentQuality === -1 ? 'Auto' : `${qualityLevels.find(q => q.index === currentQuality)?.height || 720}p`)
+                                    }
                                 </span>
                                 {!isFullscreen && (
                                     <button
@@ -1226,16 +1280,37 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
                             <div className="yt-sheet-handle" />
                             <div className="yt-sheet-title">Quality</div>
 
-                            <div className="yt-sheet-item" onClick={() => setQuality(-1)}>
-                                <span>Auto</span>
-                                {currentQuality === -1 && <span className="yt-check">✓</span>}
-                            </div>
-                            {qualityLevels.map(level => (
-                                <div key={level.index} className="yt-sheet-item" onClick={() => setQuality(level.index)}>
-                                    <span>{level.height}p</span>
-                                    {currentQuality === level.index && <span className="yt-check">✓</span>}
-                                </div>
-                            ))}
+                            {/* Movie Quality Variants (1080p, 720p, 360p grouped movies) */}
+                            {movieQualityVariants ? (
+                                <>
+                                    {Object.keys(movieQualityVariants)
+                                        .sort((a, b) => {
+                                            const order = { '1080p': 4, '720p': 3, '480p': 2, '360p': 1 };
+                                            return (order[b] || 0) - (order[a] || 0);
+                                        })
+                                        .map(quality => (
+                                            <div key={quality} className="yt-sheet-item" onClick={() => switchMovieQuality(quality)}>
+                                                <span>{quality.toUpperCase()}</span>
+                                                {selectedMovieQuality === quality && <span className="yt-check">✓</span>}
+                                            </div>
+                                        ))
+                                    }
+                                </>
+                            ) : (
+                                /* HLS Quality Levels (Auto, 720p, 480p, etc.) */
+                                <>
+                                    <div className="yt-sheet-item" onClick={() => setQuality(-1)}>
+                                        <span>Auto</span>
+                                        {currentQuality === -1 && <span className="yt-check">✓</span>}
+                                    </div>
+                                    {qualityLevels.map(level => (
+                                        <div key={level.index} className="yt-sheet-item" onClick={() => setQuality(level.index)}>
+                                            <span>{level.height}p</span>
+                                            {currentQuality === level.index && <span className="yt-check">✓</span>}
+                                        </div>
+                                    ))}
+                                </>
+                            )}
                         </motion.div>
                     </>
                 )}
