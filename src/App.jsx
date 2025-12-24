@@ -16,9 +16,52 @@ function App() {
   const [recommendations, setRecommendations] = useState(null);
   const [refreshContinueWatching, setRefreshContinueWatching] = useState(0);
 
-  // Handle shared URLs from Web Share Target API
+  // Handle file opening via File Handlers API (for "Open with" on Android)
   useEffect(() => {
+    const handleLaunchFile = async (file) => {
+      try {
+        const fileUrl = URL.createObjectURL(file);
+        setCurrentVideoUrl(fileUrl);
+        setCurrentVideoTitle(file.name || 'Video');
+      } catch (error) {
+        console.error('Error handling file:', error);
+      }
+    };
+
+    // File Handlers API - when app is opened via "Open with"
+    if ('launchQueue' in window) {
+      window.launchQueue.setConsumer(async (launchParams) => {
+        if (launchParams.files && launchParams.files.length > 0) {
+          const fileHandle = launchParams.files[0];
+          const file = await fileHandle.getFile();
+          handleLaunchFile(file);
+        }
+      });
+    }
+
+    // Handle shared files from Share Target API (POST with files)
     const urlParams = new URLSearchParams(window.location.search);
+    const isSharedFile = urlParams.get('file') === 'shared';
+
+    if (isSharedFile) {
+      // Retrieve file from cache (stored by service worker)
+      caches.open('shared-files').then(async (cache) => {
+        const response = await cache.match('/shared-video');
+        if (response) {
+          const blob = await response.blob();
+          const fileName = decodeURIComponent(response.headers.get('X-File-Name') || 'Video');
+          const file = new File([blob], fileName, { type: blob.type });
+          handleLaunchFile(file);
+          // Clean up cache
+          await cache.delete('/shared-video');
+          // Clear URL params
+          window.history.replaceState({}, document.title, '/');
+        }
+      });
+      return;
+    }
+
+    // Handle shared URLs from Web Share Target API (query params)
     const sharedUrl = urlParams.get('url') || urlParams.get('text');
 
     if (sharedUrl) {

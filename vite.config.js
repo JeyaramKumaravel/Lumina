@@ -8,7 +8,11 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'sw-custom.js'],
+      workbox: {
+        // Import custom service worker
+        importScripts: ['sw-custom.js']
+      },
       manifest: {
         name: 'Lumina - Premium Stream',
         short_name: 'Lumina',
@@ -30,16 +34,32 @@ export default defineConfig({
             type: 'image/png'
           }
         ],
-        // Web Share Target API - allows receiving shared URLs
+        // Web Share Target API - allows receiving shared URLs and files
         share_target: {
-          action: '/?share=true',
-          method: 'GET',
+          action: '/share-target',
+          method: 'POST',
+          enctype: 'multipart/form-data',
           params: {
             title: 'title',
             text: 'text',
-            url: 'url'
+            url: 'url',
+            files: [
+              {
+                name: 'video',
+                accept: ['video/*', '.mp4', '.mkv', '.avi', '.mov', '.webm', '.m4v', '.3gp', '.flv', '.wmv']
+              }
+            ]
           }
-        }
+        },
+        // File Handlers API - allows opening video files from file manager
+        file_handlers: [
+          {
+            action: '/',
+            accept: {
+              'video/*': ['.mp4', '.mkv', '.avi', '.mov', '.webm', '.m4v', '.3gp', '.flv', '.wmv', '.ts', '.m3u8']
+            }
+          }
+        ]
       }
     })
   ],
