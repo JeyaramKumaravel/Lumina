@@ -597,6 +597,43 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
         }
     };
 
+    // Download video
+    const handleDownload = async () => {
+        if (!videoUrl) return;
+
+        try {
+            showGestureFeedback('Starting Download...', <Download size={24} />);
+
+            // For direct video URLs (mp4, etc.), try to fetch and download
+            const response = await fetch(videoUrl, { mode: 'cors' });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                // Extract filename from URL or use title
+                const filename = videoTitle || currentChannel?.name || 'video';
+                const ext = videoUrl.split('.').pop()?.split('?')[0] || 'mp4';
+                a.download = `${filename}.${ext}`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                showGestureFeedback('Download Started!', <Check size={24} />);
+            } else {
+                // Fallback: open in new tab for manual download
+                window.open(videoUrl, '_blank');
+                showGestureFeedback('Opening in new tab', null);
+            }
+        } catch (error) {
+            // CORS error or other issues - fallback to new tab
+            console.log('Download fallback:', error);
+            window.open(videoUrl, '_blank');
+            showGestureFeedback('Opening in new tab', null);
+        }
+    };
+
     // ===== YOUTUBE PREMIUM FEATURES =====
 
     // Picture-in-Picture
@@ -1450,6 +1487,7 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
                             }
                         }}
                         onSave={handleSaveClick}
+                        onDownload={handleDownload}
                     />
 
                 </div>
@@ -1500,6 +1538,7 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
                         }
                     }}
                     onSave={handleSaveClick}
+                    onDownload={handleDownload}
                 />
             </div>
         </div>

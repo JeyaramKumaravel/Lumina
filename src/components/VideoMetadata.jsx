@@ -6,7 +6,7 @@ import {
 import BottomSheet from './BottomSheet';
 import Comments from './Comments';
 
-const VideoMetadata = ({ video, channel, isLiked: propIsLiked, onLike, onDislike, onShare, onSave }) => {
+const VideoMetadata = ({ video, channel, isLiked: propIsLiked, onLike, onDislike, onShare, onSave, onDownload }) => {
     const [showComments, setShowComments] = useState(false);
     const [showDescription, setShowDescription] = useState(false);
     const [isSubscribed, setIsSubscribed] = useState(false);
@@ -107,7 +107,7 @@ const VideoMetadata = ({ video, channel, isLiked: propIsLiked, onLike, onDislike
                     </button>
 
                     {/* Download */}
-                    <button className="yt-action-pill">
+                    <button className="yt-action-pill" onClick={onDownload}>
                         <div className="yt-download-icon-wrapper">
                             <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" focusable="false" style={{ width: '24px', height: '24px', fill: 'white' }}><g><path d="M17 18v1H6v-1h11zm-.5-6.6-.7-.7-3.8 3.7V4h-1v10.4l-3.8-3.8-.7.7 5 5 5-4.9z"></path></g></svg>
                         </div>
