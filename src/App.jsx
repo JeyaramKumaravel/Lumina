@@ -16,6 +16,25 @@ function App() {
   const [recommendations, setRecommendations] = useState(null);
   const [refreshContinueWatching, setRefreshContinueWatching] = useState(0);
 
+  // Handle shared URLs from Web Share Target API
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sharedUrl = urlParams.get('url') || urlParams.get('text');
+
+    if (sharedUrl) {
+      // Extract video URL from shared content (might be a full URL or just text containing a URL)
+      const urlMatch = sharedUrl.match(/(https?:\/\/[^\s]+)/);
+      const videoUrl = urlMatch ? urlMatch[1] : sharedUrl;
+
+      if (videoUrl.startsWith('http')) {
+        setCurrentVideoUrl(videoUrl);
+        setCurrentVideoTitle(urlParams.get('title') || 'Shared Video');
+        // Clear URL params after handling
+        window.history.replaceState({}, document.title, '/');
+      }
+    }
+  }, []);
+
   // Update recommendations when video or playlists change
   useEffect(() => {
     if (currentVideoUrl && playlists.length > 0) {

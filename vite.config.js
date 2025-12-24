@@ -12,10 +12,12 @@ export default defineConfig({
       manifest: {
         name: 'Lumina - Premium Stream',
         short_name: 'Lumina',
-        description: 'A premium video player experience with ambient mode',
+        description: 'A premium video player experience',
         theme_color: '#0f0f0f',
         background_color: '#0f0f0f',
         display: 'standalone',
+        start_url: '/',
+        scope: '/',
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -27,7 +29,17 @@ export default defineConfig({
             sizes: '512x512',
             type: 'image/png'
           }
-        ]
+        ],
+        // Web Share Target API - allows receiving shared URLs
+        share_target: {
+          action: '/?share=true',
+          method: 'GET',
+          params: {
+            title: 'title',
+            text: 'text',
+            url: 'url'
+          }
+        }
       }
     })
   ],
