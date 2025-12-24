@@ -4,7 +4,7 @@ import {
     FastForward, Rewind, Settings, Captions, PictureInPicture2,
     Maximize2, Timer, SkipForward, SkipBack, Tv, Heart, BookmarkPlus,
     ChevronDown, ChevronRight, Share2, Scissors, ThumbsUp, ThumbsDown,
-    MoreHorizontal, X, Flag, Lock, Sparkles, Download, Check
+    MoreHorizontal, X, Flag, Lock, Sparkles, Download, Check, Sun
 } from 'lucide-react';
 
 import { motion, AnimatePresence } from 'framer-motion';
@@ -449,14 +449,26 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '' }) => {
         }
     };
 
-    const toggleFullscreen = () => {
+    const toggleFullscreen = async () => {
         const container = containerRef.current;
         if (!document.fullscreenElement) {
             if (container.requestFullscreen) container.requestFullscreen();
             setIsFullscreen(true);
+            // Lock to landscape on mobile
+            if (screen.orientation && screen.orientation.lock) {
+                try {
+                    await screen.orientation.lock('landscape');
+                } catch (e) { /* Orientation lock not supported or not in fullscreen */ }
+            }
         } else {
             if (document.exitFullscreen) document.exitFullscreen();
             setIsFullscreen(false);
+            // Unlock orientation
+            if (screen.orientation && screen.orientation.unlock) {
+                try {
+                    screen.orientation.unlock();
+                } catch (e) { /* Orientation unlock not supported */ }
+            }
         }
     };
 
@@ -740,23 +752,37 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '' }) => {
 
         if (Math.abs(deltaY) > Math.abs(deltaX)) {
             const deltaPercent = (deltaY / containerHeight) * -1.5;
-            if (touchStartRef.current.x < containerWidth / 2) {
+            const touchPercent = (touchStartRef.current.x / containerWidth) * 100;
+
+            // Only adjust brightness/volume on sides, center area is for fullscreen toggle
+            if (touchPercent < 35) {
+                // Left side - Brightness adjustment
                 const newBrightness = Math.min(Math.max(initialBrightnessRef.current + deltaPercent, 0.2), 1);
                 setBrightness(newBrightness);
-            } else {
+                showGestureFeedback(`${Math.round(newBrightness * 100)}%`, <Sun size={24} />, newBrightness);
+            } else if (touchPercent > 65) {
+                // Right side - Volume adjustment
                 const newVol = Math.min(Math.max(initialVolumeRef.current + deltaPercent, 0), 1);
                 videoRef.current.volume = newVol;
                 setVolume(newVol);
                 setIsMuted(newVol === 0);
+                showGestureFeedback(`${Math.round(newVol * 100)}%`, <Volume2 size={24} />, newVol);
             }
+            // Center area (35-65%) - no adjustment, reserved for fullscreen toggle
         }
     };
 
     const handleTouchEnd = (e) => {
         if (!touchStartRef.current) return;
         const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
+        const containerWidth = containerRef.current ? containerRef.current.offsetWidth : window.innerWidth;
+        const touchStartX = touchStartRef.current.x;
+        const touchPercent = (touchStartX / containerWidth) * 100;
 
-        if (gestureActiveRef.current && Math.abs(deltaY) > 100) {
+        // Only toggle fullscreen on swipe in CENTER area (35-65%), not on sides where brightness/volume controls are
+        const isCenterSwipe = touchPercent >= 35 && touchPercent <= 65;
+
+        if (gestureActiveRef.current && Math.abs(deltaY) > 100 && isCenterSwipe) {
             if (deltaY < 0 && !isFullscreen && !showSettings) {
                 toggleFullscreen();
             }
