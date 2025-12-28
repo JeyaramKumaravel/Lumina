@@ -399,11 +399,12 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
     }, [playbackRate, isLooping]);
 
     const formatTime = (timeInSeconds) => {
-        if (isNaN(timeInSeconds)) return "0:00";
+        if (isNaN(timeInSeconds)) return "00:00:00";
         if (timeInSeconds === Infinity) return "Live"; // IPTV Streams
-        const minutes = Math.floor(timeInSeconds / 60);
+        const hours = Math.floor(timeInSeconds / 3600);
+        const minutes = Math.floor((timeInSeconds % 3600) / 60);
         const seconds = Math.floor(timeInSeconds % 60);
-        return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+        return `${hours < 10 ? '0' : ''}${hours}:${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
     };
 
     const handleTimeUpdate = () => {
