@@ -126,6 +126,9 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
     const lastSaveTimeRef = useRef(null);
     const isTouchActiveRef = useRef(false); // Track if touch is active to prevent mouse event interference
     const currentThumbnailRef = useRef(null); // Store current video thumbnail for saving
+    const longPressTimerRef = useRef(null); // Timer for long press detection
+    const previousSpeedRef = useRef(1); // Store previous playback speed for hold-to-fast-forward
+    const [isFastForwarding, setIsFastForwarding] = useState(false); // Show 2x indicator
 
     let controlsTimeout = useRef(null);
 
@@ -840,10 +843,35 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
         gestureActiveRef.current = false;
         initialVolumeRef.current = volume;
         initialBrightnessRef.current = brightness;
+
+        // Long press detection for 2x speed in fullscreen
+        if (isFullscreen && !isScreenLocked && videoRef.current) {
+            longPressTimerRef.current = setTimeout(() => {
+                // Activate 2x speed
+                previousSpeedRef.current = videoRef.current.playbackRate;
+                videoRef.current.playbackRate = 2;
+                setIsFastForwarding(true);
+                // Hide controls during fast forward
+                setShowControls(false);
+            }, 500); // 500ms hold to activate
+        }
     };
 
     const handleTouchMove = (e) => {
         if (!touchStartRef.current || isScreenLocked) return;
+
+        // Cancel long press if user is moving (swiping)
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+
+        // If fast forwarding and user moves, cancel it
+        if (isFastForwarding && videoRef.current) {
+            videoRef.current.playbackRate = previousSpeedRef.current;
+            setIsFastForwarding(false);
+        }
+
         const currentX = e.touches[0].clientX;
         const currentY = e.touches[0].clientY;
         const deltaX = currentX - touchStartRef.current.x;
@@ -881,6 +909,23 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
     };
 
     const handleTouchEnd = (e) => {
+        // Clear long press timer
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+
+        // Restore previous speed if fast forwarding
+        if (isFastForwarding && videoRef.current) {
+            videoRef.current.playbackRate = previousSpeedRef.current;
+            setIsFastForwarding(false);
+            // Don't process tap events when coming out of fast forward
+            touchStartRef.current = null;
+            gestureActiveRef.current = false;
+            setTimeout(() => { isTouchActiveRef.current = false; }, 400);
+            return;
+        }
+
         if (!touchStartRef.current || isScreenLocked) return;
         const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
         const containerWidth = containerRef.current ? containerRef.current.offsetWidth : window.innerWidth;
@@ -1024,6 +1069,7 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
+            onContextMenu={(e) => e.preventDefault()}
         >
             <div style={{ ...styles.brightnessOverlay, opacity: 1 - brightness }} />
 
@@ -1066,7 +1112,55 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
                         <p style={{ color: 'white' }}>10s</p>
                     </div>
                 </div>
-            )}\r
+            )}
+
+            {/* 2x Fast Forward Indicator */}
+            <AnimatePresence>
+                {isFastForwarding && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        style={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '8px',
+                            zIndex: 100,
+                            pointerEvents: 'none'
+                        }}
+                    >
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            background: 'rgba(0, 0, 0, 0.8)',
+                            padding: '16px 24px',
+                            borderRadius: '16px',
+                            backdropFilter: 'blur(10px)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)'
+                        }}>
+                            <FastForward size={28} fill="white" />
+                            <FastForward size={28} fill="white" style={{ marginLeft: '-20px' }} />
+                            <span style={{
+                                fontSize: '24px',
+                                fontWeight: '700',
+                                color: 'white',
+                                marginLeft: '8px'
+                            }}>2x</span>
+                        </div>
+                        <span style={{
+                            fontSize: '12px',
+                            color: 'rgba(255, 255, 255, 0.7)',
+                            fontWeight: '500'
+                        }}>Release to normal speed</span>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Screen Lock Overlay */}
             {isScreenLocked && (
