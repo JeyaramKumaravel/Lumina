@@ -181,16 +181,72 @@ const Library = ({ isOpen, onClose, onPlayVideo }) => {
         </div>
     );
 
+    // Format seconds to hh:mm:ss
+    const formatTime = (seconds) => {
+        if (!seconds || isNaN(seconds)) return '';
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${hrs > 0 ? hrs + ':' : ''}${hrs > 0 && mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    };
+
     const renderVideoList = (items, onRemove, emptyMsg) => (
         <div className="yt-you-list-container" style={{ padding: '60px 0 20px' }}>
             {items.length === 0 ? <div style={{ textAlign: 'center', padding: '40px', color: '#aaa' }}>{emptyMsg}</div> : items.map((item, idx) => (
                 <div key={item.id || idx} style={{ display: 'flex', gap: '12px', padding: '12px 16px' }}>
-                    <div style={{ width: '120px', height: '68px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0 }} onClick={() => onPlayVideo(item.url, item.title)}>
-                        <img src={item.thumbnail || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title)}&background=333&color=fff`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <div
+                        style={{ width: '120px', height: '68px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0, position: 'relative', cursor: 'pointer' }}
+                        onClick={() => onPlayVideo(item.url, item.title, item.currentTime || 0)}
+                    >
+                        <img
+                            src={item.thumbnail || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title)}&background=333&color=fff`}
+                            alt=""
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                        {/* Duration badge */}
+                        {item.duration > 0 && (
+                            <div style={{
+                                position: 'absolute',
+                                bottom: '4px',
+                                right: '4px',
+                                background: 'rgba(0,0,0,0.8)',
+                                padding: '2px 4px',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                color: 'white',
+                                fontWeight: '500'
+                            }}>
+                                {formatTime(item.duration)}
+                            </div>
+                        )}
+                        {/* Progress bar */}
+                        {item.progressPercent > 0 && (
+                            <div style={{
+                                position: 'absolute',
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                height: '3px',
+                                background: 'rgba(255,255,255,0.3)'
+                            }}>
+                                <div style={{
+                                    width: `${item.progressPercent}%`,
+                                    height: '100%',
+                                    background: '#e50914'
+                                }} />
+                            </div>
+                        )}
                     </div>
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         <div style={{ fontSize: '14px', fontWeight: '500', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.title}</div>
-                        <div style={{ fontSize: '12px', color: '#aaa' }}>{item.channel || 'Video'} • {item.date || 'Unknown'}</div>
+                        <div style={{ fontSize: '12px', color: '#aaa' }}>
+                            {item.currentTime > 0 && item.duration > 0
+                                ? `${formatTime(item.currentTime)} / ${formatTime(item.duration)}`
+                                : item.watchedAt
+                                    ? new Date(item.watchedAt).toLocaleDateString()
+                                    : 'Video'
+                            }
+                        </div>
                     </div>
                     {onRemove && (
                         <button onClick={() => { onRemove(item); refreshData(); }} style={{ background: 'none', border: 'none', color: '#aaa', padding: '8px' }}>

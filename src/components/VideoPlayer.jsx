@@ -125,6 +125,7 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
     const initialBrightnessRef = useRef(1);
     const lastSaveTimeRef = useRef(null);
     const isTouchActiveRef = useRef(false); // Track if touch is active to prevent mouse event interference
+    const currentThumbnailRef = useRef(null); // Store current video thumbnail for saving
 
     let controlsTimeout = useRef(null);
 
@@ -222,9 +223,21 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
         // Check if this URL is favorited
         setIsFavorited(isFavorite(videoUrl));
 
-        // Auto-save to history
-        const title = currentChannel?.name || videoUrl.split('/').pop() || 'Video';
-        addToHistory({ url: videoUrl, title });
+        // Auto-save to history with thumbnail from playlists
+        const title = videoTitle || currentChannel?.name || videoUrl.split('/').pop() || 'Video';
+        let thumbnail = null;
+        // Find thumbnail from playlists
+        if (playlists && playlists.length > 0) {
+            for (const playlist of playlists) {
+                const episode = playlist.episodes?.find(ep => ep.url === videoUrl);
+                if (episode && episode.thumbnail) {
+                    thumbnail = episode.thumbnail;
+                    break;
+                }
+            }
+        }
+        currentThumbnailRef.current = thumbnail; // Store for continue watching
+        addToHistory({ url: videoUrl, title, thumbnail });
 
         const loadContent = async () => {
             // Check if M3U Playlist
@@ -430,7 +443,7 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
             if (!lastSaveTimeRef.current || now - lastSaveTimeRef.current > 5000) {
                 lastSaveTimeRef.current = now;
                 const title = videoTitle || currentChannel?.name || video.src.split('/').pop() || 'Video';
-                saveVideoProgress(videoUrl, video.currentTime, video.duration, title, null);
+                saveVideoProgress(videoUrl, video.currentTime, video.duration, title, currentThumbnailRef.current);
                 // Also save to history so progress persists even if dismissed from Continue Watching
                 updateHistoryProgress(videoUrl, video.currentTime, video.duration);
             }
