@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, ChevronLeft, ChevronRight, Star, Clock, Film, RefreshCw, Search, X, Link, Tv, Clapperboard, MonitorPlay } from 'lucide-react';
 import { fetchAllPlaylists, getFeaturedPlaylist, searchPlaylists } from '../utils/m3uPlaylistService';
+import { getHistory, getContinueWatching } from '../utils/libraryStorage';
 import ContinueWatching from './ContinueWatching';
 
 const HomePage = ({ onPlayVideo, onPlaylistsLoaded, refreshContinueWatching }) => {
@@ -54,9 +55,46 @@ const HomePage = ({ onPlayVideo, onPlaylistsLoaded, refreshContinueWatching }) =
 
     const handlePlayPlaylist = (playlist) => {
         if (playlist.episodes.length > 0) {
-            const firstEpisode = playlist.episodes[0];
-            if (onPlayVideo) {
-                onPlayVideo(firstEpisode.url, firstEpisode.title, playlist.name);
+            // Check for saved progress in history and continue watching
+            const history = getHistory();
+            const continueWatching = getContinueWatching();
+
+            // Find the most recently watched episode from this playlist
+            let resumeEpisode = null;
+            let resumeTime = 0;
+            let latestTimestamp = 0;
+
+            for (const episode of playlist.episodes) {
+                // Check continue watching first (has currentTime and timestamp)
+                const continueItem = continueWatching.find(item => item.url === episode.url);
+                if (continueItem && continueItem.currentTime > 0) {
+                    const itemTimestamp = new Date(continueItem.updatedAt || continueItem.addedAt || 0).getTime();
+                    if (itemTimestamp > latestTimestamp) {
+                        latestTimestamp = itemTimestamp;
+                        resumeEpisode = episode;
+                        resumeTime = continueItem.currentTime;
+                    }
+                }
+
+                // Also check history for progress (uses watchedAt timestamp)
+                const historyItem = history.find(item => item.url === episode.url);
+                if (historyItem) {
+                    const itemTimestamp = new Date(historyItem.watchedAt || 0).getTime();
+                    if (itemTimestamp > latestTimestamp) {
+                        latestTimestamp = itemTimestamp;
+                        resumeEpisode = episode;
+                        resumeTime = historyItem.currentTime || 0;
+                    }
+                }
+            }
+
+            if (resumeEpisode && onPlayVideo) {
+                // Resume from saved position
+                onPlayVideo(resumeEpisode.url, resumeEpisode.title, resumeTime);
+            } else if (onPlayVideo) {
+                // Start from first episode
+                const firstEpisode = playlist.episodes[0];
+                onPlayVideo(firstEpisode.url, firstEpisode.title, 0);
             }
         }
     };
