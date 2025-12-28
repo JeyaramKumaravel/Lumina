@@ -122,6 +122,7 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
     const initialVolumeRef = useRef(1);
     const initialBrightnessRef = useRef(1);
     const lastSaveTimeRef = useRef(null);
+    const isTouchActiveRef = useRef(false); // Track if touch is active to prevent mouse event interference
 
     let controlsTimeout = useRef(null);
 
@@ -753,6 +754,12 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
     }, []);
 
     const handleMouseMove = () => {
+        // In fullscreen mode, if touch is active, don't respond to mouse events
+        // This prevents touch-triggered mouse events from interfering with tap-to-toggle
+        if (isFullscreen && isTouchActiveRef.current) {
+            return;
+        }
+
         setShowControls(true);
         clearTimeout(controlsTimeout.current);
         controlsTimeout.current = setTimeout(() => {
@@ -806,6 +813,7 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
     };
 
     const handleTouchStart = (e) => {
+        isTouchActiveRef.current = true; // Mark touch as active
         touchStartRef.current = {
             x: e.touches[0].clientX,
             y: e.touches[0].clientY,
@@ -888,17 +896,34 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
                     triggerSeekRipple('center');
                 }
             } else {
-                // Single tap - toggle and keep controls visible longer on mobile
+                // Single tap - toggle controls visibility (show/hide)
                 setTimeout(() => {
                     if (Date.now() - lastTapRef.current > 300) {
-                        setShowControls(true);
-                        // Keep controls visible for 8 seconds on mobile
-                        clearTimeout(controlsTimeout.current);
-                        controlsTimeout.current = setTimeout(() => {
-                            if (isPlaying && !showSettings && !showSleepMenu && !showQualityMenu) {
-                                setShowControls(false);
-                            }
-                        }, 8000);
+                        // In fullscreen mode, toggle controls on/off with single tap
+                        if (isFullscreen) {
+                            setShowControls(prev => {
+                                const newState = !prev;
+                                // If showing controls, auto-hide after 5 seconds
+                                clearTimeout(controlsTimeout.current);
+                                if (newState) {
+                                    controlsTimeout.current = setTimeout(() => {
+                                        if (isPlaying && !showSettings && !showSleepMenu && !showQualityMenu) {
+                                            setShowControls(false);
+                                        }
+                                    }, 5000);
+                                }
+                                return newState;
+                            });
+                        } else {
+                            // Non-fullscreen: show controls and keep visible for 8 seconds
+                            setShowControls(true);
+                            clearTimeout(controlsTimeout.current);
+                            controlsTimeout.current = setTimeout(() => {
+                                if (isPlaying && !showSettings && !showSleepMenu && !showQualityMenu) {
+                                    setShowControls(false);
+                                }
+                            }, 8000);
+                        }
                     }
                 }, 310);
             }
@@ -906,6 +931,8 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
         }
         touchStartRef.current = null;
         gestureActiveRef.current = false;
+        // Delay resetting touch active to prevent immediate mouse event handling
+        setTimeout(() => { isTouchActiveRef.current = false; }, 400);
     };
 
     if (!videoUrl) return <div style={styles.container}><div style={styles.emptyState}><Play size={48} /><p>Paste URL</p></div></div>;
