@@ -853,9 +853,6 @@ const PlaylistCard = ({ playlist, onPlay, delay }) => {
                 {/* Card Info */}
                 <div className="card-info">
                     <h3 className="card-title">{playlist.name}</h3>
-                    {episodeCount > 0 && (
-                        <p className="card-subtitle">{episodeCount} {episodeCount === 1 ? 'Episode' : 'Episodes'}</p>
-                    )}
                 </div>
             </div>
 
