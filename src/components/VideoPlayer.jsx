@@ -28,8 +28,10 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
     const [progress, setProgress] = useState(0);
     const [volume, setVolume] = useState(1);
     const [isMuted, setIsMuted] = useState(false);
-    const [currentTime, setCurrentTime] = useState('0:00');
-    const [duration, setDuration] = useState('0:00');
+    const [currentTime, setCurrentTime] = useState('00:00:00');
+    const [duration, setDuration] = useState('00:00:00');
+    const [remainingTime, setRemainingTime] = useState('00:00:00');
+    const [showRemainingTime, setShowRemainingTime] = useState(false);
     const [showControls, setShowControls] = useState(true);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isBuffering, setIsBuffering] = useState(false);
@@ -414,12 +416,14 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
         if (video.duration === Infinity) {
             setCurrentTime("Live");
             setDuration("Live");
+            setRemainingTime("Live");
             setProgress(100);
         } else {
             const progressPercent = (video.currentTime / video.duration) * 100;
             setProgress(progressPercent);
             setCurrentTime(formatTime(video.currentTime));
             setDuration(formatTime(video.duration));
+            setRemainingTime(formatTime(video.duration - video.currentTime));
 
             // Save progress every 5 seconds
             const now = Date.now();
@@ -1177,7 +1181,13 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
                                         }}
                                     />
                                 </div>
-                                <span className="yt-time">{duration}</span>
+                                <span
+                                    className="yt-time"
+                                    onClick={() => setShowRemainingTime(prev => !prev)}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    {showRemainingTime ? `-${remainingTime}` : duration}
+                                </span>
                                 <span className="yt-quality-badge">
                                     {movieQualityVariants && selectedMovieQuality
                                         ? selectedMovieQuality.toUpperCase()
