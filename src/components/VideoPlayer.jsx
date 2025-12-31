@@ -1230,6 +1230,17 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
                             className="yt-mobile-top-bar"
                             onClick={(e) => e.stopPropagation()}
                         >
+                            {isFullscreen && (
+                                <button className="yt-minimize-btn" onClick={toggleFullscreen}>
+                                    <ChevronDown size={24} />
+                                </button>
+                            )}
+
+                            <div className="yt-top-info">
+                                <div className="yt-top-title">{videoTitle || currentChannel?.name || 'Video'}</div>
+                                {currentChannel && <div className="yt-top-channel">{currentChannel.name}</div>}
+                            </div>
+
                             <div className="yt-top-actions">
                                 <button onClick={toggleCaptions} className="yt-top-btn">
                                     <Captions size={24} fill={captionsEnabled ? "white" : "none"} />
