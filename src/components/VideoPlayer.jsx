@@ -26,6 +26,7 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
 
     const [isPlaying, setIsPlaying] = useState(false);
     const [progress, setProgress] = useState(0);
+    const [bufferedProgress, setBufferedProgress] = useState(0);
     const [volume, setVolume] = useState(1);
     const [isMuted, setIsMuted] = useState(false);
     const [currentTime, setCurrentTime] = useState('00:00:00');
@@ -546,6 +547,20 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
             setCurrentTime(formatTime(video.currentTime));
             setDuration(formatTime(video.duration));
             setRemainingTime(formatTime(video.duration - video.currentTime));
+
+            // Calculate buffered progress (YouTube-style buffer indicator)
+            if (video.buffered && video.buffered.length > 0) {
+                // Find the buffered range that contains current time
+                let bufferedEnd = 0;
+                for (let i = 0; i < video.buffered.length; i++) {
+                    if (video.buffered.start(i) <= video.currentTime && video.currentTime <= video.buffered.end(i)) {
+                        bufferedEnd = video.buffered.end(i);
+                        break;
+                    }
+                }
+                const bufferedPercent = (bufferedEnd / video.duration) * 100;
+                setBufferedProgress(bufferedPercent);
+            }
 
             // Save progress every 5 seconds
             const now = Date.now();
@@ -1187,6 +1202,7 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
                 onPlaying={() => setIsBuffering(false)}
                 onEnded={handleVideoEnd}
                 playsInline
+                preload="metadata"
             />
 
             <AnimatePresence>
@@ -1401,7 +1417,7 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
                                         onChange={handleProgressChange}
                                         className="yt-progress-bar"
                                         style={{
-                                            background: `linear-gradient(to right, #ff0000 ${isNaN(progress) ? 0 : progress}%, rgba(255,255,255,0.3) ${isNaN(progress) ? 0 : progress}%)`
+                                            background: `linear-gradient(to right, #ff0000 ${isNaN(progress) ? 0 : progress}%, rgba(255,255,255,0.5) ${isNaN(progress) ? 0 : progress}%, rgba(255,255,255,0.5) ${isNaN(bufferedProgress) ? 0 : bufferedProgress}%, rgba(255,255,255,0.2) ${isNaN(bufferedProgress) ? 0 : bufferedProgress}%)`
                                         }}
                                     />
                                 </div>
