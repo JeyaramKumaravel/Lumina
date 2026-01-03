@@ -323,10 +323,34 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
                 // Fix for buffer holes
                 maxBufferHole: 0.5,
                 nudgeMaxRetry: 5,
+                // Audio track handling improvements
+                startLevel: -1, // Auto quality
+                autoStartLoad: true,
+                // Prefer AAC audio codec for browser compatibility
+                defaultAudioCodec: 'mp4a.40.2',
             });
             hls.loadSource(url);
             hls.attachMedia(video);
-            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+
+            // Handle audio tracks - select first available audio track
+            hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, (event, data) => {
+                console.log('Audio tracks found:', data.audioTracks);
+                if (data.audioTracks && data.audioTracks.length > 0) {
+                    // Select the first audio track if none is selected
+                    if (hls.audioTrack === -1) {
+                        hls.audioTrack = 0;
+                        console.log('Selected audio track:', data.audioTracks[0]);
+                    }
+                }
+            });
+
+            hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+                // Log audio codec info for debugging
+                if (data.levels && data.levels.length > 0) {
+                    const level = data.levels[0];
+                    console.log('Stream info - Video codec:', level.videoCodec, 'Audio codec:', level.audioCodec);
+                }
+
                 // Resume from saved position
                 if (resumeTime > 0) {
                     video.currentTime = resumeTime;
@@ -368,6 +392,22 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
             video.src = url;
             video.addEventListener('loadedmetadata', function onLoaded() {
                 video.removeEventListener('loadedmetadata', onLoaded);
+                // Check for audio tracks
+                if (video.audioTracks && video.audioTracks.length > 0) {
+                    console.log('Audio tracks available:', video.audioTracks.length);
+                    // Enable first audio track if none enabled
+                    let hasEnabledTrack = false;
+                    for (let i = 0; i < video.audioTracks.length; i++) {
+                        if (video.audioTracks[i].enabled) {
+                            hasEnabledTrack = true;
+                            break;
+                        }
+                    }
+                    if (!hasEnabledTrack && video.audioTracks.length > 0) {
+                        video.audioTracks[0].enabled = true;
+                        console.log('Enabled audio track:', video.audioTracks[0].label || 'Track 0');
+                    }
+                }
                 video.play().catch(e => console.log("Autoplay blocked", e));
                 setIsPlaying(true);
                 setIsBuffering(false);
@@ -376,8 +416,37 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
             // Standard video files (MP4, WebM, OGG, etc.)
             video.src = url;
 
+            const onLoadedMetadata = () => {
+                // Log audio track information for debugging
+                console.log('Video loaded:', url);
+                if (video.audioTracks) {
+                    console.log('Audio tracks:', video.audioTracks.length);
+                    for (let i = 0; i < video.audioTracks.length; i++) {
+                        console.log(`  Track ${i}: ${video.audioTracks[i].label || 'Unknown'} (${video.audioTracks[i].language || 'unknown lang'})`);
+                    }
+                    // Enable first audio track if none enabled
+                    if (video.audioTracks.length > 0) {
+                        let hasEnabledTrack = false;
+                        for (let i = 0; i < video.audioTracks.length; i++) {
+                            if (video.audioTracks[i].enabled) {
+                                hasEnabledTrack = true;
+                                break;
+                            }
+                        }
+                        if (!hasEnabledTrack) {
+                            video.audioTracks[0].enabled = true;
+                            console.log('Auto-enabled first audio track');
+                        }
+                    }
+                } else {
+                    // audioTracks API not supported - check if video has audio via other means
+                    console.log('AudioTracks API not available in this browser');
+                }
+            };
+
             const onCanPlay = () => {
                 video.removeEventListener('canplay', onCanPlay);
+                video.removeEventListener('loadedmetadata', onLoadedMetadata);
                 setIsBuffering(false);
                 // Resume from saved position
                 if (resumeTime > 0) {
@@ -389,15 +458,52 @@ const VideoPlayer = ({ videoUrl, resumeTime = 0, videoTitle = '', seriesData = n
                     video.play().catch(() => setIsPlaying(false));
                 });
                 setIsPlaying(true);
+
+                // Detect if audio is actually playing after a delay
+                // This helps identify videos with unsupported audio codecs (AC-3, EAC-3, DTS, etc.)
+                setTimeout(() => {
+                    if (video.paused || video.ended || video.muted) return;
+
+                    // Chrome/Edge specific: check decoded audio bytes
+                    if (video.webkitAudioDecodedByteCount !== undefined) {
+                        if (video.webkitAudioDecodedByteCount === 0) {
+                            console.warn('No audio decoded - video may have unsupported audio codec (AC-3, EAC-3, DTS)');
+                            showGestureFeedback('Audio codec not supported', null);
+                        } else {
+                            console.log('Audio decoded bytes:', video.webkitAudioDecodedByteCount);
+                        }
+                    } else if (video.mozHasAudio !== undefined) {
+                        // Firefox specific
+                        if (!video.mozHasAudio) {
+                            console.warn('No audio track detected in video');
+                            showGestureFeedback('No audio track', null);
+                        }
+                    }
+                    // Safari uses audioTracks API which we already handle in loadedmetadata
+                }, 2000); // Check after 2 seconds of playback
             };
 
             const onError = (e) => {
                 video.removeEventListener('error', onError);
-                // Suppress console spam, just show visual feedback
+                video.removeEventListener('loadedmetadata', onLoadedMetadata);
+                // Check for specific audio decode errors
+                const error = video.error;
+                if (error) {
+                    console.warn('Video error:', error.code, error.message);
+                    if (error.code === MediaError.MEDIA_ERR_DECODE) {
+                        showGestureFeedback('Codec not supported', null);
+                    } else if (error.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+                        showGestureFeedback('Format not supported', null);
+                    } else {
+                        showGestureFeedback('Video unavailable', null);
+                    }
+                } else {
+                    showGestureFeedback('Video unavailable', null);
+                }
                 setIsBuffering(false);
-                showGestureFeedback('Video unavailable', null);
             };
 
+            video.addEventListener('loadedmetadata', onLoadedMetadata);
             video.addEventListener('canplay', onCanPlay);
             video.addEventListener('error', onError);
             video.load();
